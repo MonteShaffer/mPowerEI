@@ -1,1 +1,10 @@
-# Configuration
+# Configuration Variables To Run
+
+        # path to local organized data objects, organized by 
+        # /$localCache$/md5(healthCode)/recordId/
+localCache    = "P:/.synapseCache";  
+
+synapseUser   = 'monte.shaffer@gmail.com'; # change to your credentials
+synapsePass   = 'MySuperSecretPassPhrase'; 
+synapseCache  = "P:/.synapseCache";                 
+

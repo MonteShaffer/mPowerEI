@@ -1,9 +1,28 @@
 Package: mPowerEI
-Title: What the Package Does (one line, title case)
+Title: Extracts Features for Parkinson's Disease (PD) Prediction from mPower Clinical
 Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Authors@R: person("Monte", "Shaffer", email = "monte.shaffer@gmail.com", role = c("aut", "cre"))
+Description: 
+  mPower DREAM Challenge - **Team EInstEIn** `R` package
+
+  This package contains information necessary for the mPower DREAM Challenge.
+  * Download the Files From Synapse
+  * Organize the Downloaded Data into LocalCache
+  * Parse the Data into R Objects
+  * Build Feature Variables For Challenge Testing
+  * Submit Feature Selection to Synapse Challenge
 Depends: R (>= 3.4.1)
-License: What license is it under?
+Imports:
+  jsonlite,
+  readr,
+  rgl,
+  ggplot2,
+  digest,
+  plyr,
+  pracma,
+  pastecs,
+  tractor.base,
+  IDPmisc
+License: MIT
 Encoding: UTF-8
 LazyData: true
