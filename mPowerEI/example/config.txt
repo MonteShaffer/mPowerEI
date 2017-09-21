@@ -2,9 +2,20 @@
 
         # path to local organized data objects, organized by 
         # /$localCache$/md5(healthCode)/recordId/
-localCache    = "P:/.synapseCache";  
+localCache    = "P:/_synapseCacheMonte";  
 
 synapseUser   = 'monte.shaffer@gmail.com'; # change to your credentials
 synapsePass   = 'MySuperSecretPassPhrase'; 
 synapseCache  = "P:/.synapseCache";                 
 
+synapseProject = "mPower";
+synapseTables = c('syn10146552','syn10146553','syn10733842','syn10733835');
+synapseVariables = c('demographics','walking.training','walking.testing','walking.supplemental');
+
+synapseListJSON = c("accel_walking_outbound.json.items","deviceMotion_walking_outbound.json.items","pedometer_walking_outbound.json.items","accel_walking_return.json.items","deviceMotion_walking_return.json.items","pedometer_walking_return.json.items","accel_walking_rest.json.items","deviceMotion_walking_rest.json.items");
+
+
+# data-access requires synapsePackage
+  # source('http://depot.sagebase.org/CRAN.R')
+  # pkgInstall("synapseClient")
+  # library(synapseClient);

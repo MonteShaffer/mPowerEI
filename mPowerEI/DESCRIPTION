@@ -3,8 +3,7 @@ Title: Extracts Features for Parkinson's Disease (PD) Prediction from mPower Cli
 Version: 0.0.0.9000
 Authors@R: person("Monte", "Shaffer", email = "monte.shaffer@gmail.com", role = c("aut", "cre"))
 Description: 
-  mPower DREAM Challenge - **Team EInstEIn** `R` package
-
+  mPower DREAM Challenge - Team EInstEIn R package
   This package contains information necessary for the mPower DREAM Challenge.
   * Download the Files From Synapse
   * Organize the Downloaded Data into LocalCache
@@ -13,6 +12,7 @@ Description:
   * Submit Feature Selection to Synapse Challenge
 Depends: R (>= 3.4.1)
 Imports:
+  graphics,
   jsonlite,
   readr,
   rgl,
@@ -26,3 +26,4 @@ Imports:
 License: MIT
 Encoding: UTF-8
 LazyData: true
+RoxygenNote: 6.0.1
