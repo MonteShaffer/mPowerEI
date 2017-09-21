@@ -1,5 +1,5 @@
-# mPowerEI
-mPower DREAM Challenge - Team EInstEIn R package
+# `mPowerEI`
+mPower DREAM Challenge - **Team EInstEIn** `R` package
 
 This package contains information necessary for the mPower DREAM Challenge.
 * Download the Files From Synapse
