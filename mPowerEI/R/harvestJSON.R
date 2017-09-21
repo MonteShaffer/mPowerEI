@@ -6,7 +6,7 @@
 #' @param random boolean (true or false); if true, we randomize the list (allows for multiple instances)
 #' @param verbose boolean (true or false); if true, we print messages to console
 #'
-#' @return
+#' @return number of total records
 #' @export
 #'
 #' @examples
@@ -71,7 +71,7 @@ harvestJSON <- function(dframe,syntable,random=T,verbose=T)
       hrecords = as.numeric(scan(cache,quiet=T));
     }
     
-    
+    print(hrecords);
     records = records + hrecords;
     
     #prepareData(h,force=T);
@@ -86,7 +86,7 @@ harvestJSON <- function(dframe,syntable,random=T,verbose=T)
     #stop();
   }
   #print(jsonlist);
-  
+  records;
 }
 
 
@@ -125,15 +125,16 @@ harvestSingle <- function(h,syntable='syn10146553')
     {
       # hack workaround for synapse bug ... ## https://sagebionetworks.jira.com/browse/SYNR-1043
       if(length(data[[json]]) < 1 ) { next; }
-      if(length(data[[json]]) == 1 ) 
-      { 
-        if(is.na(data[[json]])) 
-        { 
-          next;
-        }
-      }
+      rNA = !is.na(data[[json]]);
+      
+      templa = data[rNA,];
+      
+      if(dim(templa)[1] < 1) { next; }
+      templat = template;
+        attr(templat,"values") = templa;
+      
 
-      json_files <- synDownloadTableColumns(template, json);
+      json_files <- synDownloadTableColumns(templat, json);
 
       k=0;
       for(n in names(json_files))
@@ -141,22 +142,27 @@ harvestSingle <- function(h,syntable='syn10146553')
         k=1+k;
         f = as.character(json_files[k]);
         s = subset(data,data[[json]]==n);
-        r = s$recordId;
-        rv = recordStringToVariable(r);
-        records = 1 + records;
-        recordFolder = paste(userFolder,rv,sep="/");
-        if(!dir.exists(recordFolder)) { dir.create(recordFolder, recursive=T); }
-        recordFile = paste(recordFolder,gsub(".items","",json),sep="/");
-        print(recordFile);
-        
-        if(file.exists(f))
-        {
-          if(!file.exists(recordFile))
+        if(dim(s)[1] > 0)
           {
-            file.copy(f,recordFile);
-          }
-        }
+              r = s$recordId;
+                print(r);
+              rv = recordStringToVariable(r);
+              records = 1 + records;
+              recordFolder = paste(userFolder,rv,sep="/");
+              if(!dir.exists(recordFolder)) { dir.create(recordFolder, recursive=T); }
+              recordFile = paste(recordFolder,gsub(".items","",json),sep="/");
+              print(recordFile);
+              
+              if(file.exists(f))
+              {
+                if(!file.exists(recordFile))
+                {
+                  file.copy(f,recordFile);
+                }
+              }
         
+        
+          }
         
       }
     }

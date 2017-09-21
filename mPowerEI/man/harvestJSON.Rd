@@ -15,6 +15,9 @@ harvestJSON(dframe, syntable, random = T, verbose = T)
 
 \item{verbose}{boolean (true or false); if true, we print messages to console}
 }
+\value{
+number of total records
+}
 \description{
 Harvest JSON data-motion objects from Synapse
 }
