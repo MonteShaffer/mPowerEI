@@ -77,7 +77,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
     
       rawF = "rawData.Rda";
         rawFile = paste(recordFolder,rawF,sep="/");
-     
+     print(recordFolder);
         
     if(!file.exists(rawFile) | force==T)
         {
@@ -179,11 +179,20 @@ parseSingleRecordVariable = function(rv,force=FALSE)
         # design points
           
         slist = scaleToTimeIncrement(tlist,setup$designpoint);
+          mlist = olist = ilist = list();
+          #ilist = list(); # internal list of function calls/stacks
+          morder = data.frame();
         mlist = mergeListsAccelDeviceMotion(slist);
-        olist = orientToGravity(mlist);
-        ilist = list(); # internal list of function calls/stacks
+            # must have both accel and deviceMotion data
+        if(length(mlist)>0)
+          {
+          olist = orientToGravity(mlist);
+          morder = determineOrder(mlist);  
+          }
+
         
-        morder = determineOrder(mlist);  
+        
+          
         
         
         # end motion iteration
