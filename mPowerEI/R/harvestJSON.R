@@ -455,3 +455,56 @@ harvestAudit <- function(path="userObjects",key="AUDIT")
   audit;
   }
 
+
+purgeRdas = function()
+{
+  # purge all of types
+  # assume we have list from audit
+  
+  rclist = names(audit$rclist);
+  rclist = sample(rclist); # randomize
+  rclen = length(rclist);
+  for(i in 1:rclen)
+  {
+    rv = rclist[i];
+      status = ("###      CCCC  of  TTTT         ###");
+      status = gsub("CCCC",i,status);
+      status = gsub("TTTT",rclen,status);
+      
+      print("##################################");
+      print(status)
+      print("##################################");
+      print(rv); 
+      flush.console();
+    
+    
+    purgeRdaFromRecord(rv);
+  }
+}
+
+
+purgeRdaFromRecord = function(rv)
+{
+  r = recordVariableToString(rv);
+  
+  rinfo=audit$rclist[[rv]];
+  hv = rinfo$info[1];
+  h = recordVariableToString(hv,prepend="HEALTH");
+  
+  userFolder = paste(localCache,"userObjects",hv,sep="/");
+  recordFolder = paste(userFolder,rv,sep="/");
+  
+  rawF = "rawData.Rda";
+  rawFile = paste(recordFolder,rawF,sep="/");
+  
+  
+  motionF = paste(setup$designpoint,"motionData.Rda",sep="-");
+  motionFile = paste(recordFolder,motionF,sep="/");
+  
+  if(file.exists(rawFile)) {file.remove(rawFile)}
+  if(file.exists(motionFile)) {file.remove(motionFile)}
+  
+}
+
+
+#myFs = list.files(myDR, pattern = "\\.json$");
