@@ -70,7 +70,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
   r = recordVariableToString(rv);
     rinfo=audit$rclist[[rv]];
       hv = rinfo$info[1];
-      h = recordVariableToString(rv,prepend="HEALTH");
+      h = recordVariableToString(hv,prepend="HEALTH");
       
     userFolder = paste(localCache,"userObjects",hv,sep="/");
     recordFolder = paste(userFolder,rv,sep="/");
