@@ -29,3 +29,154 @@ integrateMe <- function(x, y, method = "trapezoid")
     list(area=area,dydx=as.vector(cum));
 }
 
+
+
+
+
+#' Convert Units (from gravity to m/s^2)
+#'
+#' Constants must be loaded with:  \code{setup = loadSetup();}
+#'
+#' @param x numeric vector
+#' @param from units to change from
+#' @param to units to change to
+#'
+#' @return numeric vector of converted result
+#' @export
+#'
+#' @examples
+#' 
+#' convertUnits(1); # 9.8
+#' convertUnits(seq(-2,2,by=0.25)); 
+#' 
+#' 
+convertUnits <- function(x,from="g",to="m/s^2")
+{
+  
+  if(!is.vector(x)) { stop("'invalid value of 'x' - must be numeric (vector)"); }
+  fromTo = paste(from,to,sep='');
+  
+  # switch doesn't work like "c syntax" so using less efficient if/then
+  if(fromTo == "gm/s^2") { setup$g * x; }
+  else if(fromTo == "m/s^2g") { x / setup$g; }
+  #else if() {}
+  else { stop("'missing conversion method'");}
+}
+
+
+
+
+
+
+
+
+
+#v1 = c(2,1);
+#v2 = c(1,2);
+
+# https://stackoverflow.com/questions/1897704/angle-between-two-vectors-in-r
+computeAngle = function(v1,v2, out="radians")
+{
+  v1_ = vectorMagnitude(v1);
+  v2_ = vectorMagnitude(v2);
+  
+  cosTheta = pracma::dot(v1,v2) / (v1_ * v2_);
+  
+  theta = acos(cosTheta);	
+  if(out == "degrees") { theta = theta * 180 / pi; }
+  theta;
+}
+
+
+
+# vgrotated = c(0,0,-1);
+# vgraw = as.numeric(tlist$outbound$deviceMotion[1,12:14]);
+# gRotatedMatrix = getRotationMatrix(vgraw,vgrotated);
+
+# vraw = as.numeric(tlist$outbound$accel[1,-1]);
+# vrotated = ???
+# vrotated = vraw%*%gRotatedMatrix;
+
+
+vectorMagnitude = function(v)
+{
+  sqrt(sum(v^2));
+}
+unitVector = function(v)
+{
+  vlen = vectorMagnitude(v);  # can this be nonzero?
+  v/vlen;
+}
+
+getRotationMatrix = function(v1,v2)
+{
+  #https://gamedev.stackexchange.com/questions/20097/how-to-calculate-a-3x3-rotation-matrix-from-2-direction-vectors
+  
+  v1_ = unitVector(v1);
+  v2_ = unitVector(v2);
+  
+  # if(v1_ == v2_) { stop("vectors are equal"); }
+  
+  matr = matrix(0,nrow=3,ncol=3);
+  
+  matr[1,] = v1_;
+  matr[3,] = unitVector(pracma::cross(v1,v2));
+  matr[2,] = unitVector(pracma::cross(matr[3,],v1));
+  
+  
+  matr;
+}
+
+getQuaternion = function(v1,v2)
+{
+  # quat is of form (w,x,y,z)
+  # http://lolengine.net/blog/2013/09/18/beautiful-maths-quaternion-from-vectors
+  # http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final
+  # https://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another	
+  #https://math.stackexchange.com/questions/2251214/calculate-quaternions-from-two-directional-vectors
+  # http://tutis.ca/Rotate/7quaternions.htm
+  
+  v1_ = unitVector(v1);
+  v2_ = unitVector(v2);
+  
+  
+  
+  quat = c( pracma::dot(v1_,v2_), pracma::cross(v1_,v2_) );
+  quat[0] = quat[0] + vectorMagnitude(quat);
+  
+  
+  unitVector(quat);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' Compute gravity at a certain altitude on earth.
+#' 
+#' 
+#' Constants must be loaded with:  \code{setup = loadSetup();}
+#' 
+#' @param h height in meters
+#'
+#' @return gravity on earth adjusted for altitude \code{h}
+#' @export
+#'
+#' @examples
+#' g10 = g_h(10);
+#' g100 = g_h(100);
+#' g1000 = g_h(1000);
+g_h = function(h)
+{
+  setup$g * (( setup$r_e/( setup$r_e + h))^2);
+}
+

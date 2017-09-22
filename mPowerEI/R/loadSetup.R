@@ -5,6 +5,8 @@ loadSetup <- function()
  setup = list();
  
  setup$dims=c("x","y","z");
+ setup$keys = c("accel", "deviceMotion","pedometer");
+ setup$acts = c("outbound", "return","rest");
  
  setup$designpoint = 100; # number of milliseconds per design point
  setup$pareto = 0.8 # number of elements in design-point analysis to be considered a good point
