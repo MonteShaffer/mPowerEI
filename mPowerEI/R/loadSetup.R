@@ -1,7 +1,19 @@
 
 
+#' Load Setup 
+#'
+#' Loads constant variables used in package
+#' 
+#' @return
+#' @export
+#'
+#' @examples
+#' setup = loadSetup();  	# builds constants
+#' str(setup);
+#' 
 loadSetup <- function()
   {
+  
  setup = list();
  
  setup$dims=c("x","y","z");
