@@ -71,10 +71,23 @@ convertUnits <- function(x,from="g",to="m/s^2")
 
 
 
-#v1 = c(2,1);
-#v2 = c(1,2);
-
-# https://stackoverflow.com/questions/1897704/angle-between-two-vectors-in-r
+# 
+#' Compute Angle between two vectors in n-dim space
+#'
+#' https://stackoverflow.com/questions/1897704/angle-between-two-vectors-in-r
+#' 
+#' @param v1 numeric vector
+#' @param v2 numeric vector
+#' @param out degree output format (default is 'radians', also 'degrees')
+#'
+#' @return numeric angle in 'out' format
+#' @export
+#'
+#' @examples
+#' v1 = c(2,1,0); v2 = c(0,1,2);
+#' computeAngle(v1,v2);
+#' computeAngle(v1,v2,out="degrees");
+#' 
 computeAngle = function(v1,v2, out="radians")
 {
   v1_ = vectorMagnitude(v1);
@@ -98,16 +111,51 @@ computeAngle = function(v1,v2, out="radians")
 # vrotated = vraw%*%gRotatedMatrix;
 
 
+#' Determine length or magnitude of n-dim vector
+#'
+#' @param v numeric vector of coordinates
+#'
+#' @return numeric magnitude
+#' @export
+#'
+#' @examples
+#' vectorMagnitude(v1);
+#' vectorMagnitude(v1-v2);
+#' 
 vectorMagnitude = function(v)
 {
+  
   sqrt(sum(v^2));
 }
+#' Normalize a vector so the magnitude is 1 (unit radius)
+#'
+#' @param v numeric vector of coordinates
+#'
+#' @return numeric vector of coordinates (norm 1)
+#' @export
+#'
+#' @examples
+#' unitVector(v1)
+#' unitVector(v2)
 unitVector = function(v)
 {
+
   vlen = vectorMagnitude(v);  # can this be nonzero?
   v/vlen;
 }
 
+#' Create rotation matrix (3-D space)
+#' 
+#' Represent the transformations required to get from v1 to v2
+#'
+#' @param v1 numeric vector of length 3
+#' @param v2 numeric vector of length 3
+#'
+#' @return numeric matrix (3x3)
+#' @export
+#'
+#' @examples
+#' getRotationMatrix(v1,v2);
 getRotationMatrix = function(v1,v2)
 {
   #https://gamedev.stackexchange.com/questions/20097/how-to-calculate-a-3x3-rotation-matrix-from-2-direction-vectors
@@ -127,6 +175,20 @@ getRotationMatrix = function(v1,v2)
   matr;
 }
 
+
+#' Create quaternion (3-D space)
+#' 
+#' Represent the transformations required to get from v1 to v2
+#'
+#' @param v1 numeric vector of length 3
+#' @param v2 numeric vector of length 3
+#'
+#' @return numeric vector of length 4 [w  x,y,z] with *norm 1*
+#' @export
+#'
+#' @examples
+#' getQuaternion(v1,v2);
+#' 
 getQuaternion = function(v1,v2)
 {
   # quat is of form (w,x,y,z)

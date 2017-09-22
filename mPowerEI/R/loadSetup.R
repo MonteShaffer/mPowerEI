@@ -4,7 +4,7 @@
 #'
 #' Loads constant variables used in package
 #' 
-#' @return
+#' @return list 'setup' is returned.
 #' @export
 #'
 #' @examples

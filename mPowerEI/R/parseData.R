@@ -1,5 +1,15 @@
+#' parseAllRecordData
+#'
+#' @param verbose boolean; if TRUE, will print progress to console.
+#' @param force boolean; if TRUE, it will force a rebuild of all objects
+#'
+#' @return nothing
+#' @export
+#'
+
 parseAllRecordData = function(verbose=TRUE,force=FALSE) 
 {
+  
   # assumes audit has run ... 
   # audit = harvestAudit(); # builds/caches list objects of health/record 
   rclist = names(audit$rclist);
@@ -31,8 +41,18 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
 
 
 
+#' Parse a Single Record (rv)
+#' 
+#' @param rv a string of the record in variable form "RECORD28832018b9c849e79d67f201d99eb8b6"
+#' @param force boolean; if TRUE, it will force a rebuild of all objects
+#'
+#' @return list of two objects 'raw' and 'motion':  raw is the raw JSON data, motion is the data redesigned based on setup$designpoint
+#' @export
+#'
+
 parseSingleRecordVariable = function(rv,force=FALSE) 
 {
+  
   # timer?
   # rv = "RECORD28832018b9c849e79d67f201d99eb8b6";
   r = recordVariableToString(rv);
@@ -172,8 +192,20 @@ parseSingleRecordVariable = function(rv,force=FALSE)
 
 
 
+#' Determine Activity Order
+#'
+#' [rest, outbound, return]
+#' [outbound, rest, return]
+#' [outbound, return, rest]
+#' @param mlist 
+#'
+#' @return dataframe sorted by order with start/stop timestamps as values
+#' @export
+#'
+#' 
 determineOrder = function(mlist)
 {
+  
   morder = data.frame();
   
   acts = c("outbound","rest","return");
@@ -202,8 +234,25 @@ determineOrder = function(mlist)
 
 
 
+#' Orient To Gravity
+#' 
+#' The deviceMotion 'gravity' data is compared to normal downward gravity.
+#' gravityDown = c(0,0,-1);
+#' The getRotationMatrix is determined between g' and g.
+#' This matrix is used to alter the single data points.
+#' 
+#' This calculation occurs at every designpoint.
+#' Simultaneously, within this function, an angle is computed between each point.
+#'
+#' @param mlist 
+#'
+#' @return list 'olist' of mlist with updated orientation
+#' @export
+#'
+
 orientToGravity = function(mlist)
 {
+  
   # return timestamp, x, y, z
   gravityDown = c(0,0,-1);
   
@@ -243,8 +292,19 @@ orientToGravity = function(mlist)
 
 
 ## https://www.macrumors.com/2016/06/23/apple-researchkit-hire-stephen-friend/
+#' Combine Independent Data (accel and deviceMotion)
+#'
+#' With common time, we can now merge the data sets into a flattened panel
+#'
+#' @param slist a data list with the timestamps smoothed to a setup$designpoint (e.g., 100)
+#'
+#' @return mlist an updated data list with each named element in flattened-panel form.
+#' @export
+#'
+
 mergeListsAccelDeviceMotion = function(slist)
 {
+  
   mlist = list();
   for(act in names(slist))
   {
@@ -276,8 +336,22 @@ mergeListsAccelDeviceMotion = function(slist)
 
 
 
+#' Rebuild Data to Time Design Point
+#'
+#' We use a recent median up to a right-hand stop point.
+#' setup$pareto determines if the point will be included.
+#' [TODO] - missing data inline ... do not know if it is possible, but maybe control
+#'
+#' @param temp dataframe with first column timestamp, all other columns numeric
+#' @param increment designpoint frame (determined in setup$designpoint)
+#'
+#' @return updated dataframe with few points, and median values
+#' @export
+#'
+
 rebuildTimeIncrement = function(temp,increment)
 {
+  
   # increment in milliseconds
   nrows = dim(temp)[1];
   ncols = dim(temp)[2];
@@ -346,8 +420,18 @@ rebuildTimeIncrement = function(temp,increment)
 
 
 
+#' Scale Data to Design Point
+#'
+#' @param tlist 
+#' @param increment (in milliseconds) assigned as setup$designpoint
+#'
+#' @return updated list 'slist'
+#' @export
+#'
+
 scaleToTimeIncrement = function(tlist,increment)
 {
+
   slist = list();
   
   for(act in names(tlist))
@@ -390,8 +474,15 @@ scaleToTimeIncrement = function(tlist,increment)
 
 
 
+#' Initialize Raw List
+#'
+#' @return list 'rlist'
+#' @export
+#'
+#'
 initializeRecordRawList = function()
 {
+  
   rlist = list();
   rlist$outbound = list();
   rlist$outbound$accel = list();
@@ -409,6 +500,12 @@ initializeRecordRawList = function()
   rlist;
 }
 
+#' Initialize Time-flattened List
+#'
+#' @return list 'tlist'
+#' @export
+#'
+#'
 initializeRecordTimeList = function()
 {
   tlist = list();
@@ -430,8 +527,16 @@ initializeRecordTimeList = function()
 
 
 
+#' Parse Pedometer Data
+#'
+#' @param precords dataframe of raw [p]edometer records
+#'
+#' @return updated dataframe
+#' @export
+#'
 getSecondsFromPedometerTime = function(precords)
 {
+  
   precords$startU = precords$endU = precords$diffU = precords$stepsPerSecond = precords$distancePerSecond = precords$deltaTime = precords$deltaSteps = precords$deltaDistance =  precords$deltaStepsPerSecond = precords$deltaDistancePerSecond =NA;
   
   if(is.null(precords))
@@ -479,8 +584,19 @@ getSecondsFromPedometerTime = function(precords)
 
 
 
+#' Collapse Device Motion Timestamp
+#'
+#' Apple timestamp for deviceMotion has only one timestamp.
+#' This function flattens the file into panel form, with shared timestamp
+#' @param drecords dataframe of tlist [d]eviceMotion records
+#'
+#' @return updated dataframe
+#' @export
+#'
+
 collapseTimeStampDeviceMotion = function(drecords)
 {
+  
   dframe <- data.frame();
   if(is.null(drecords))
   {

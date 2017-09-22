@@ -193,8 +193,20 @@ harvestSingle <- function(h,syntable='syn10146553')
 }
 
 
+#' Copy Synapse Cache to Local Cache (internal private function)
+#'
+#' @param data 
+#' @param json 
+#' @param userFolder 
+#' @param json_files 
+#'
+#' @return integer 'localrecords'
+#' @export
+#'
+
 doFileCopy = function(data,json,userFolder,json_files)
   {
+  
   localrecords = 0;
   k=0;
   for(n in names(json_files))
@@ -231,8 +243,19 @@ doFileCopy = function(data,json,userFolder,json_files)
         
       
 
+#' SQL query to Synapse to get Single Record
+#'
+#' @param h 
+#' @param r 
+#' @param syntable 
+#'
+#' @return Synapse custom 'table' template
+#' @export
+#'
+
 getSingleRecordIdQuery <- function(h,r,syntable='syn10146553')
 {
+  
   
   hv = recordStringToVariable(h,prepend="HEALTH");
   rv = recordStringToVariable(r,prepend="RECORD");
@@ -269,6 +292,17 @@ getSingleRecordIdQuery <- function(h,r,syntable='syn10146553')
   #print(str(template));
   template;
 }
+
+
+
+#' SQL query to Synapse to get all records for Single Health Code
+#'
+#' @param h 
+#' @param syntable 
+#'
+#' @return Synapse custom 'table' template
+#' @export
+#'
 
 
 getSingleHealthCodeQuery <- function(h,syntable='syn10146553')
@@ -310,13 +344,27 @@ getSingleHealthCodeQuery <- function(h,syntable='syn10146553')
 }
 
 
+#' Perform an Audit on localCache of objects 
+#'
+#' Good/Bad based on completeness of records
+#' Lists organize the data on different keying features for quick lookups
+#' 
+#' @param path string that can be relative to 'localCache' or absolute
+#' @param key string used for caching a unique audit
+#'
+#' @return list named 'audit'
+#' @export
+#'
+#' @examples
+#' audit = harvestAudit();
 harvestAudit <- function(path="userObjects",key="AUDIT")
   {
+  
   tstart = Sys.time();
   myO = paste(localCache,"summaryObjects","",sep="/");
     auditF = paste(myO, paste(synapseProject,key,sep='-'), ".Rda", sep='');
     
-  if(file.exists(myO))
+  if(file.exists(auditF))
   {
     load(auditF);
       tc = audit$tc;
