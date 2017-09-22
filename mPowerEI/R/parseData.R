@@ -19,8 +19,8 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
       {
       rv = rclist[i];
       status = ("###      CCCC  of  TTTT         ###");
-          status = gsub("CCCC",i,statusi);
-          status = gsub("TTTT",rclen,statusi);
+          status = gsub("CCCC",i,status);
+          status = gsub("TTTT",rclen,status);
           
       if(verbose==T)
       {
