@@ -9,7 +9,8 @@
 
 parseAllRecordData = function(verbose=TRUE,force=FALSE) 
 {
-  
+  tstart = Sys.time();
+  tendr = Sys.time();
   # assumes audit has run ... 
   # audit = harvestAudit(); # builds/caches list objects of health/record 
   rclist = names(audit$rclist);
@@ -21,19 +22,30 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
       status = ("###      CCCC  of  TTTT         ###");
           status = gsub("CCCC",i,status);
           status = gsub("TTTT",rclen,status);
-          
+        
+      tstartr = Sys.time();
+       
       if(verbose==T)
       {
         print("##################################");
         print(status)
         print("##################################");
         print(rv); 
-        print("##################################");
         flush.console();
       }
           parseSingleRecordVariable(rv);  # return nothing, just build...
       
-      
+      tendr = Sys.time();
+          
+          if(verbose==T)
+          { 
+            timerA = tendr - tstart;  #absolute
+            timerL = tendr - tstartr; #local
+          print(timerA)
+          print(timerL)
+          print("##################################");
+            
+          }
       
        
       }
@@ -99,7 +111,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
                 if(key=="pedometer")
                 {
                   ptemp = getSecondsFromPedometerTime(temp);
-                  stop("pedometer");
+                  #stop("pedometer");
                   
                   #print(temp);
                   
