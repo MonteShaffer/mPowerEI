@@ -64,6 +64,13 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
 
 parseSingleRecordVariable = function(rv,force=FALSE) 
 {
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  logF = paste(myO, paste(synapseProject,"ERROR",sep='-'), ".log", sep='');
+  
+  
+  gc = 0;  # good counter
+  bc = c();
+  
   
   # timer?
   # rv = "RECORD28832018b9c849e79d67f201d99eb8b6";
@@ -78,6 +85,9 @@ parseSingleRecordVariable = function(rv,force=FALSE)
       rawF = "rawData.Rda";
         rawFile = paste(recordFolder,rawF,sep="/");
      print(recordFolder);
+        # may be not exist if "everything was good"
+      gF = paste(recordFolder,"goodCounter.txt",sep="/");
+      bF = paste(recordFolder,"badJSON.txt",sep="/"); 
         
     if(!file.exists(rawFile) | force==T)
         {
@@ -99,12 +109,53 @@ parseSingleRecordVariable = function(rv,force=FALSE)
                 act = gsub(".json","",s[3]);
                 f = paste(recordFolder,j,sep="/");
                 jsonstring <- readr::read_file(f);
-                  # jsonstring = gsub("\\]\\[",",",jsonstring);
+                  
                 
-                temp = jsonlite::fromJSON(jsonstring);
+                
+                
+                
+  # demo(error.catching)
+  temp = tryCatch({
+    jsonlite::fromJSON(jsonstring);
+  }, warning = function(wc) {
+    cat( "^^^^", file=logF, sep="\n", append=T);
+    cat( as.character(recordFolder), file=logF, sep="\n", append=T);
+    cat( as.character("RECORD"), file=logF, sep="\n", append=T);
+    cat( as.character(r), file=logF, sep="\n", append=T);
+    cat( as.character("HEALTH"), file=logF, sep="\n", append=T);
+    cat( as.character(h), file=logF, sep="\n", append=T);
+    cat( as.character("FILE"), file=logF, sep="\n", append=T);
+    cat( as.character(j), file=logF, sep="\n", append=T);
+    cat( as.character(wc), file=logF, sep="\n", append=T);
+    cat( "####", file=logF, sep="\n", append=T);
+  }, error = function(ec) {
+    cat( "^^^^", file=logF, sep="\n", append=T);
+    cat( as.character(recordFolder), file=logF, sep="\n", append=T);
+    cat( as.character("RECORD"), file=logF, sep="\n", append=T);
+    cat( as.character(r), file=logF, sep="\n", append=T);
+    cat( as.character("HEALTH"), file=logF, sep="\n", append=T);
+    cat( as.character(h), file=logF, sep="\n", append=T);
+    cat( as.character("FILE"), file=logF, sep="\n", append=T);
+    cat( as.character(j), file=logF, sep="\n", append=T);
+    cat( as.character(ec) , file=logF, sep="\n", append=T);
+    cat( "####", file=logF, sep="\n", append=T);
+  }, finally={
+    # on complete
+  })
+                  
+                  
+                
+               # temp = jsonlite::fromJSON(jsonstring);
+  # jsonstring = gsub("\\]\\[",",",jsonstring);
+    # we could manually fix and "try again"
                 
                 rlist[[act]][[key]] = temp;  # original form
                 
+                if(!is.null(temp))
+                {
+                  gc = 1+gc;
+                } else { bc = c(bc, f); }
+                  
                 
                 # let's figure out tlist [timestamped]
                 
@@ -165,6 +216,11 @@ parseSingleRecordVariable = function(rv,force=FALSE)
                         rlist=rlist,tlist=tlist,ilist=ilist);
         
         save(rawObj,file=rawFile);
+        cat(gc,file=gF);
+        if(gc != 8)
+        {
+        cat( paste0(bc),file=bF);
+        }
       }
       load(rawFile);
       raw = rawObj;
