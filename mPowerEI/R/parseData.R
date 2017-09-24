@@ -625,7 +625,7 @@ getSecondsFromPedometerTime = function(precords)
     return(NULL);
   }
   
-  print(paste("DIM:",dim(precords)[1]));
+  print(paste("PEDOMETER - DIM:",dim(precords)[1]));
   
   # https://stackoverflow.com/questions/1962278/dealing-with-timestamps-in-r
   csteps = cdist = ctime = 0;
