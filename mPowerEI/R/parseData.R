@@ -16,12 +16,14 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
   rclist = names(audit$rclist);
   rclist = sample(rclist); # randomize
     rclen = length(rclist);
+  countC = 0;  # cacheCount
   for(i in 1:rclen)
       {
       rv = rclist[i];
-      status = ("###      CCCC  of  TTTT         ###");
+      status = ("###      CCCC  of  TTTT    (XXX)     ###");
           status = gsub("CCCC",i,status);
           status = gsub("TTTT",rclen,status);
+          status = gsub("XXX",countC,status);
         
       tstartr = Sys.time();
        
@@ -33,7 +35,8 @@ parseAllRecordData = function(verbose=TRUE,force=FALSE)
         print(rv); 
         flush.console();
       }
-          parseSingleRecordVariable(rv);  # return nothing, just build...
+          rvinfo = parseSingleRecordVariable(rv);  
+          if(rvinfo$isCached) {countC = countC +1; }
       
       tendr = Sys.time();
           
@@ -67,7 +70,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
   myO = paste(localCache,"summaryObjects","",sep="/");
   logF = paste(myO, paste(synapseProject,"ERROR",sep='-'), ".log", sep='');
   
-  
+  isCached = TRUE;
   gc = 0;  # good counter
   bc = c();
   
@@ -91,6 +94,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
         
     if(!file.exists(rawFile) | force==T)
         {
+        isCached = FALSE;
           rlist = initializeRecordRawList(); 
           tlist = initializeRecordTimeList();
           ilist = list(); # internal list of function calls/stacks
@@ -263,7 +267,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
         
         
       
-     list(raw=raw,motion=motion); 
+     list(raw=raw,motion=motion,isCached=isCached); 
 }
 
 
