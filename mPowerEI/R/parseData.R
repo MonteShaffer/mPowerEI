@@ -238,7 +238,7 @@ parseSingleRecordVariable = function(rv,force=FALSE)
         
         # design points
           
-        slist = scaleToTimeIncrement(tlist,setup$designpoint);
+        slist = scaleToTimeIncrement(raw$tlist,setup$designpoint);
           mlist = olist = ilist = list();
           #ilist = list(); # internal list of function calls/stacks
           morder = data.frame();
