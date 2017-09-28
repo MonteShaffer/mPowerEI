@@ -365,6 +365,33 @@ getDemographics = function(myH)
 }
 
 
+getInstance = function(myR)
+{
+  
+  # assumes mPower exists
+  # myR = "RECORD27d5ffdd536e4f2db47874bbd520e9f7";
+  r = recordVariableToString(myR);
+  
+  
+  see = c("walking.training","walking.testing","walking.supplemental");
+  
+  # assume only 1.
+  
+  for(se in see)
+  {
+    dfr = mPower[[se]];
+    s = subset(dfr, recordId == r);
+  if(dim(s)[1]>0) { return(list(dframe=se,info=s));}
+  }
+  
+  
+  return(NULL);
+}
+
+
+
+
+
 
 #' Perform an Audit on localCache of objects 
 #'
@@ -445,7 +472,12 @@ harvestAudit <- function(path="userObjects",key="AUDIT")
         } else {cBad = c(cBad,myR)}
             
             rc=c(myH,myR,countF);
-          rclist[[myR]] = list(info=(rc),files=myFs); 
+          rclist[[myR]] = list(info=(rc),files=myFs,"instance"=getInstance(myR)); 
+            
+            
+            
+            #print(rclist);
+            #stop();
           
       }
     

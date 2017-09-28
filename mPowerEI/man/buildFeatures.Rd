@@ -2,7 +2,7 @@
 % Please edit documentation in R/buildFeatures.R
 \name{buildFeatures}
 \alias{buildFeatures}
-\title{Build Features From Data Objects}
+\title{Build Features From Data Objects ... happens at "record-id" level (rv)}
 \usage{
 buildFeatures()
 }
@@ -10,5 +10,5 @@ buildFeatures()
 nothing
 }
 \description{
-Build Features From Data Objects
+Build Features From Data Objects ... happens at "record-id" level (rv)
 }

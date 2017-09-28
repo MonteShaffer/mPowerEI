@@ -15,9 +15,12 @@ scoreFactor = function(dframerow,myK,myS)
 {
   myV = dframerow[[myK]];
   
+  #print(myK);print(myS);print(myV);
+  
   if(myS == "healthState")
   {
     if(length(myV) < 1) { return(3.333); }
+    if(is.na(myV)) { return(3.333); }
     if(myV =="Immediately before Parkinson medication") { return(0); }
     if(myV =="Another time") { return(1); }
     if(myV =="Just after Parkinson medication (at your best)") { return(2); }
@@ -27,6 +30,7 @@ scoreFactor = function(dframerow,myK,myS)
   } else if(myS == "isPD")
   {
     if(length(myV) < 1) { return(0.666); }
+    if(is.na(myV)) { return(0.666); }
     if(myV =="Immediately before Parkinson medication") { return(1); }
     if(myV =="Another time") { return(1); }
     if(myV =="Just after Parkinson medication (at your best)") { return(1); }
@@ -36,6 +40,8 @@ scoreFactor = function(dframerow,myK,myS)
   }  else if(myS == "age")
   {
     if(length(myV) < 1) { return(33.333); }
+    #if(is.na(myV)) { return(33.333); }
+    
     myV = as.numeric(myV);
     if(is.na(myV)) { return(33.222); }
    

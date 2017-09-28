@@ -1,19 +1,57 @@
+#' Title
+#'
+#' @param submitr list from submit template, r as string
+#' @param auditr list from harvest audit, rv as variable
+#'
+#' @return list (rv) of missing values (we don't have in audit)
+#' @export
+#'
+
+compareRecords = function(submitr, auditr)
+{
+  
+  submitr_ = c();
+  rlen = length(submitr);
+  
+  for(i in 1:rlen)
+  {
+   r =  submitr[i];
+   rv = recordStringToVariable(r);
+   
+   submitr_[i] = rv;
+  }
+  
+  
+  diffr = setdiff(submitr_,auditr);
+  
+ diffr; 
+}
+
+
+
 
 # do system-wide loops on different analyses
 
-
-getImputationMedians(dframe,good,myC)
-{
-  # good records may be bad if badJSON existed ...
-  
-  iframe = dframe[dframe$rv == good,myC];
-  # sum(is.na(df$col))
-  
-  
-}
+#' Imputate
+#' 
+#' We first cache all unique health code missing values.
+#' We replace NAN/INF with NA
+#' We loop once to replace health code groups with median values
+#' We loop again to replace global median values
+#' 
+#' [TODO: address extreme outliers]
+#'
+#' @param dframe dataframe with NA, NAN, INF, -INF values
+#' @param myC columns to imputate
+#'
+#' @return updated dataframe
+#' @export
+#'
 
 imputateDataFrame = function(dframe,myC)
 {
+  tstart = Sys.time();
+  
   # dframe = pfeats;
   # let's cache all unique healthcode median values ...
   medianCache = list();
@@ -53,7 +91,8 @@ imputateDataFrame = function(dframe,myC)
             
             if(is.na(dv))
             {
-              replacev = medianCache[[hv]][[dvn]];
+              noise = runif(1, -0.001, 0.001);
+              replacev = medianCache[[hv]][[dvn]]  + noise;
             dframe[i,j] = replacev;
             }
           #stop();
@@ -93,6 +132,7 @@ imputateDataFrame = function(dframe,myC)
       }
     }
     
+    tend = Sys.time(); timer = tend - tstart; print(timer);
     
    
     
@@ -104,11 +144,11 @@ imputateDataFrame = function(dframe,myC)
 #'
 #' @param dframe 
 #'
-#' @return update dframe
+#' @return update dframe 
 #' @export
 #'
 
-appendRecordData = function(pframe)  # 6.6 minutes if not cached...
+appendRecordData = function(pframe,missingrecords)  # 6.6 minutes if not cached...
 {
   # 3 minutes
   myO = paste(localCache,"summaryObjects","",sep="/");
@@ -122,7 +162,28 @@ appendRecordData = function(pframe)  # 6.6 minutes if not cached...
     
   records = rownames(pframe);
   pframe$rv = records;
+  
+  # let's add rows based on missingrecords (in rv format)
+ro = pframe[1,];
+ro[!is.na(ro)]=NA;
+
+  for(mr in missingrecords)
+  {
+  tro = ro;
+  tro$rv = mr;
+    row.names(tro) = mr;
+  
+    pframe = rbind(pframe,tro);
+    
+  }
+  
+
+records = rownames(pframe);
+  
+  pframe$r = NA;
   pframe$hv = NA;
+  pframe$h = NA;
+  pframe$source = NA;
   pframe$healthState = pframe$isPD = pframe$gender = pframe$age = NA;
     
     
@@ -143,20 +204,46 @@ appendRecordData = function(pframe)  # 6.6 minutes if not cached...
   # row.names(audit$alist)   ... list of good/bad records to figure out subset of health-records...
   # audit$alist[[healthCode]]$details$goodRecords;
   
-  rlen = length(records);
+  #rlen = length(records);
+  rlen = dim(pframe)[1];
   for(i in 1:rlen)
     {
     print(paste(i," of ",rlen)); flush.console();
     rv = records[i];
-      myH = audit$rclist[[rv]]$info[1];
+r = recordVariableToString(rv);
+      myH = hv = audit$rclist[[rv]]$info[1];  # missing records not in my audit
+h = recordVariableToString(hv,"HEALTH");
+
+if(is.null(myH))
+{
+  h="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";  
+  hv = myH = recordStringToVariable(h,"HEALTH");
+}
+
+ 
     pframe$hv[i] = myH;
+    
+    pframe$r[i] = r;
+    pframe$h[i] = h;
+    
       demographics = audit$alist[[myH]]$demographics;
       if(length(demographics) > 1)
       {
-        pframe$age[i] = scoreFactor(demographics,"age","age"); 
-        pframe$healthState[i] = scoreFactor(demographics,"medTimepoint","healthState");
-        pframe$isPD[i] = scoreFactor(demographics,"medTimepoint","isPD");
-        pframe$gender[i] = scoreFactor(demographics,"gender","gender");
+        pframe$age[i] = scoreFactor(demographics,"age","age");         pframe$gender[i] = scoreFactor(demographics,"gender","gender");
+      }
+    
+    instance = audit$rclist[[rv]]$instance;
+    
+    if(length(instance) > 1)
+    {
+      
+      pframe$source = as.character(instance$dframe);
+    
+        
+        
+        pframe$healthState[i] = scoreFactor(instance$info,"medTimepoint","healthState");
+        pframe$isPD[i] = scoreFactor(instance$info,"medTimepoint","isPD");
+        
       }
     #pframe$demographics[i] = audit$alist[[myH]]$demographics;
     }
@@ -176,8 +263,17 @@ appendRecordData = function(pframe)  # 6.6 minutes if not cached...
   pframe;
 }
 
-getPedometerFeatures = function()
+#' Get Features from Pedometer Data
+#'
+#' @param records list of character strings of records.  From submission template, doesn't match audit 79168 - 79137
+#'
+#' @return dataframe of pedometer options
+#' @export
+#'
+
+getPedometerFeatures = function(records,method="string")
 {
+  
   # we are building for testing, so will use all 79,000 records  ## 2.2 hours to build ...
   tstart = Sys.time();
   
@@ -189,12 +285,21 @@ getPedometerFeatures = function()
   {
   pframe = data.frame();
   
-  records = names(audit$rclist);
+  #records = names(audit$rclist);
     rlen = length(records);
   for(i in 1:rlen)
   {
     print(paste(i," of ",rlen)); flush.console();
-    rv = records[i];
+    #rv = records[i];
+    if(method == "string")
+      {
+      r = records[i];
+      rv = recordStringToVariable(r);
+    } else {
+      rv = records[i];
+      r = recordVariableToString(rv);
+     }
+    
     rvObj = getMotionObject(rv);
     
     pfeat = getPedometerFeaturesFromRecord(rvObj);
