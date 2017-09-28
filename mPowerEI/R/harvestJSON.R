@@ -343,6 +343,28 @@ getSingleHealthCodeQuery <- function(h,syntable='syn10146553')
   template;
 }
 
+#' Append Demographics to audit
+#'
+#' @param myH hv identifier for healthcode
+#'
+#' @return row of dframe
+#' @export
+#'
+
+getDemographics = function(myH)
+{
+  
+  # assumes mPower exists
+  # myH = "HEALTHb9bb799d996b48909c5fd9238f8683c3";
+  h = recordVariableToString(myH,"HEALTH");
+  tt = mPower$demographics$healthCode == h;
+  
+  res = mPower$demographics[ tt, ]
+  
+  res;
+}
+
+
 
 #' Perform an Audit on localCache of objects 
 #'
@@ -405,7 +427,7 @@ harvestAudit <- function(path="userObjects",key="AUDIT")
       myRs = list.dirs(myD, full.names=F, recursive=F);
       nr = length(myRs);
       
-    alist[[myH]] = list("goodRecords"=0,"totalRecords"=0,"details" = list());
+    alist[[myH]] = list("goodRecords"=0,"totalRecords"=0,"details" = list(),"demographics" = getDemographics(myH));
     
       for(j in 1:nr)
       {

@@ -14,6 +14,7 @@
 loadSetup <- function()
   {
   
+  
  setup = list();
  
  setup$dims=c("x","y","z");

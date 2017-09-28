@@ -1,4 +1,59 @@
 
+
+#' Convert Factor to Number
+#'
+#' 
+#' @param dframerow 
+#' @param myK 
+#' @param myS
+#'
+#' @return
+#' @export
+#'
+#' @examples
+scoreFactor = function(dframerow,myK,myS)
+{
+  myV = dframerow[[myK]];
+  
+  if(myS == "healthState")
+  {
+    if(length(myV) < 1) { return(3.333); }
+    if(myV =="Immediately before Parkinson medication") { return(0); }
+    if(myV =="Another time") { return(1); }
+    if(myV =="Just after Parkinson medication (at your best)") { return(2); }
+    if(myV =="I don't take Parkinson medications") { return(5); }
+    
+    return(3);
+  } else if(myS == "isPD")
+  {
+    if(length(myV) < 1) { return(0.666); }
+    if(myV =="Immediately before Parkinson medication") { return(1); }
+    if(myV =="Another time") { return(1); }
+    if(myV =="Just after Parkinson medication (at your best)") { return(1); }
+    if(myV =="I don't take Parkinson medications") { return(0); }
+    
+    return(0.5);
+  }  else if(myS == "age")
+  {
+    if(length(myV) < 1) { return(33.333); }
+    myV = as.numeric(myV);
+    if(is.na(myV)) { return(33.222); }
+   
+    return(myV);
+  }  
+  else if(myS == "gender")
+  {
+    if(length(myV) < 1) { return(0.5005); }
+    if(is.na(myV)) { return(0.5115); }
+    if(myV =="Male") { return(1); }
+    if(myV =="Female") { return(0); }
+    
+    
+    return(0.5);
+  }   else { } 
+  
+}
+
 #' Build variable $healthState = 0,1,2, 3,  5 and $isPD = 0, 0.5, 1  where 0.5 and 3 are NA.
 #'
 #' @param dframe 

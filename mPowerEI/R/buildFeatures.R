@@ -53,7 +53,7 @@ getMotionObject = function (rv)
 getPedometerFeaturesFromRecord = function(rvObj)
 {
   
-  
+  # rvObj = getMotionObject(rv);
   plist = pinfo = list();
   
   
