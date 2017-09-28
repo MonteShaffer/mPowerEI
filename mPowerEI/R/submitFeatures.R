@@ -144,8 +144,8 @@ loadSubmitLibraries = function()
 #' @export
 #'
 
+
 PD_score_challenge1<-function(training_features){
-  
   #manipulate incoming data into dataframe
   training_features<-as.data.frame(training_features)
   recordidname<-names(training_features)[1]
@@ -178,6 +178,7 @@ PD_score_challenge1<-function(training_features){
   
   return(ensemble_model)
 }
+
 
 
 
