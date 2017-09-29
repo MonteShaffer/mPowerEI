@@ -2,7 +2,7 @@
 % Please edit documentation in R/analyzeFeatures.R
 \name{compareRecords}
 \alias{compareRecords}
-\title{Title}
+\title{Compare Records}
 \usage{
 compareRecords(submitr, auditr)
 }
@@ -15,5 +15,5 @@ compareRecords(submitr, auditr)
 list (rv) of missing values (we don't have in audit)
 }
 \description{
-Title
+Compare Records
 }

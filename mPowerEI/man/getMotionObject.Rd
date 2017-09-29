@@ -9,6 +9,9 @@ getMotionObject(rv)
 \arguments{
 \item{rv}{[requires audit]}
 }
+\value{
+rvObj object
+}
 \description{
 Load Motion Object
 }

@@ -7,10 +7,10 @@
 #' @param myK 
 #' @param myS
 #'
-#' @return
+#' @return single numeric value
 #' @export
 #'
-#' @examples
+
 scoreFactor = function(dframerow,myK,myS)
 {
   myV = dframerow[[myK]];
@@ -67,8 +67,7 @@ scoreFactor = function(dframerow,myK,myS)
 #' @return updated dframe with $healthState and $isPD
 #' @export
 #'
-#' @examples 
-#' trainme = codeHealthState(mPower$walking.training);
+#' @examples trainme = codeHealthState(mPower$walking.training);
 codeHealthState = function(dframe)
 {
   trainme = dframe;

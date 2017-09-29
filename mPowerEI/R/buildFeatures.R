@@ -9,7 +9,7 @@
 #' @return list with details from computation
 #' @export
 #'
-#' @examples
+
 computeNormValue = function(x)
 {
   
@@ -29,10 +29,10 @@ list(d=d,dmin=dmin,dmax=dmax,ddeviationmin=ddeviationmin,ddeviationmax=ddeviatio
 #'
 #' @param rv [requires audit]
 #'
-#' @return
+#' @return rvObj object
 #' @export
 #'
-#' @examples
+
 getMotionObject = function (rv)
 {
   
@@ -42,14 +42,14 @@ getMotionObject = function (rv)
 }
 
 
-#' Title
+#' Pedometer Features
 #'
 #' @param rvObj 
 #'
-#' @return
+#' @return list of features
 #' @export
 #'
-#' @examples
+
 getPedometerFeaturesFromRecord = function(rvObj)
 {
   

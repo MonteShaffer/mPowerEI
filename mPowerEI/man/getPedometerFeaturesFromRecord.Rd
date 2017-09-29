@@ -2,13 +2,16 @@
 % Please edit documentation in R/buildFeatures.R
 \name{getPedometerFeaturesFromRecord}
 \alias{getPedometerFeaturesFromRecord}
-\title{Title}
+\title{Pedometer Features}
 \usage{
 getPedometerFeaturesFromRecord(rvObj)
 }
 \arguments{
 \item{rvObj}{}
 }
+\value{
+list of features
+}
 \description{
-Title
+Pedometer Features
 }

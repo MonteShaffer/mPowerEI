@@ -1,4 +1,4 @@
-#' Title
+#' Compare Records
 #'
 #' @param submitr list from submit template, r as string
 #' @param auditr list from harvest audit, rv as variable

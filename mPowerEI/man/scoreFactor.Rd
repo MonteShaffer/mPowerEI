@@ -13,6 +13,9 @@ scoreFactor(dframerow, myK, myS)
 
 \item{myS}{}
 }
+\value{
+single numeric value
+}
 \description{
 Convert Factor to Number
 }
