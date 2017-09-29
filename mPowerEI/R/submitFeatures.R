@@ -279,8 +279,18 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 }
 
 
+#' Dampen outliers
+#'
+#' @param dframe 
+#' @param xfeats numeric vector, list of columns to be evaluated
+#' @param iCut number, number of IQRs to use to truncate min/max
+#'
+#' @return updated dframe
+#' @export
+#'
+
 dampenOutliers = function(dframe,xfeats,iCut=6)
-{
+{.
   # iCut is number of IQR to truncate to
   pmed = plyr::colwise(median)(dframe[,xfeats]);  
   pmean = plyr::colwise(mean)(dframe[,xfeats]);
