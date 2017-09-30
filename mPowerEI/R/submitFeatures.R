@@ -201,13 +201,14 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     xfeattemp = roc.remaining;
     xlentemp = length(xfeattemp);
     for(i in 1:xlentemp)
-    {
+    { 
       xfeat = xfeattemp[i];
+      xfeattemplist = c(roc.nest,xfeat);
       print(paste("######################",xfeat,"######################"));
       print(paste(i," of ",xlentemp)); flush.console();  
       print( c(rnum,xfeattemplist) );
       print(paste("######################",xfeat,"######################"));
-      xfeattemplist = c(roc.nest,xfeat); 
+     
       tpfeat = tpfeats[,c(rnum,xfeattemplist)];
       
       resultme = NULL;
