@@ -381,6 +381,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       xfeat = xfeattemp[i];
       print(paste("######################",xfeat,"######################"));
       print(paste(i," of ",xlentemp)); flush.console();  
+      print( c(rnum,xfeattemplist) );
       print(paste("######################",xfeat,"######################"));
       xfeattemplist = c(roc.nest,xfeat); 
       tpfeat = tpfeats[,c(rnum,xfeattemplist)];
@@ -413,7 +414,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
       roc.remaining = setdiff(roc.list,as.numeric(roc.nest));	
       # next loop
-      roc.loop = roc.loop + 1;	
+      roc.loop = roc.loop + 1;	roc.index = paste("X",roc.loop,sep='');
       roc.previous = roc.current;
     }
     
@@ -421,7 +422,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   
   tend = Sys.time();
   timerTotal = tend - tstart;  print(timerTotal);
-    timers[[roc.index]]$total = list(timer = timerTotal, units = attr(timerTotal,"units") )
+    timers$total = list(timer = timerTotal, units = attr(timerTotal,"units") )
   
   names(roc.nest) = roc.names[roc.nest];
   
