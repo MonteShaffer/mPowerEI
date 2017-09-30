@@ -287,6 +287,10 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 
 #' Select Best Features [Step-wise] to maximize ROC
 #'
+#' Hierarchy:  pick single feature with highest ROC, include in model; include second-best feature (with first feature) with highest ROC, include in model; and so on.
+#' 
+#' We stop when the next feature to be added lowers the overall ROC.
+#' 
 #' @param dframe dataframe
 #' @param xfeats columns with features
 #' @param rnum number, column index or $r
@@ -296,6 +300,7 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 #'
 stepwiseFeatureSelection = function(dframe,xfeats,rnum)
 {
+  tstart = Sys.time();
   # dframe = pfeats; xfeats=1:20; rnum=22;
   ## setup multi-cores before call, if possible
   ## library(doMC);
@@ -339,10 +344,10 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     rocs[xfeat] = resultme$error$ROC;
     status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
     print(paste("######################",status,"######################"));
-    tendInner = Sys.time(); timerInner = tendInner - tstartInner;
+    tendInner = Sys.time(); timerInner = tendInner - tstartInner; print(timerInner);
       timers[[roc.index]][[xfeat]] = list(timer = timerInner, units = attr(timerInner,"units") )
   }
-    tendOuter = Sys.time(); timerOuter = tendOuter - tstartOuter;
+    tendOuter = Sys.time(); timerOuter = tendOuter - tstartOuter; print(timerOuter);
       timers[[roc.index]]$outer = list(timer = timerOuter, units = attr(timerOuter,"units") )
   rocs;
   # determine roc.nest first value;
@@ -414,7 +419,9 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     
   }
   
-  
+  tend = Sys.time();
+  timerTotal = tend - tstart;  print(timerTotal);
+    timers[[roc.index]]$total = list(timer = timerTotal, units = attr(timerTotal,"units") )
   
   names(roc.nest) = roc.names[roc.nest];
   
@@ -422,7 +429,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   
   
   
-  list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner)
+  list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
   
 }
 
