@@ -49,9 +49,6 @@ loadSubmitLibraries = function()
 #' @return ensemble_model
 #' @export
 #'
-
-
-
 PD_score_challenge1<-function(training_features){
   #manipulate incoming data into dataframe
   training_features<-as.data.frame(training_features)
@@ -96,7 +93,6 @@ PD_score_challenge1<-function(training_features){
 #' @return mergeddata with covariates (age/gender) from demos$
 #' @export
 #'
-
 download_merge_covariate<-function(features){
   
   #download correct covariates
@@ -114,6 +110,7 @@ download_merge_covariate<-function(features){
   return(mergeddata)
 }
 
+
 #' Ensemble Training
 #'
 #' @param training 
@@ -124,7 +121,6 @@ download_merge_covariate<-function(features){
 #' @return greedy_ensemble  
 #' @export
 #'
-
 fit_model<-function(training, featurenames, covs_num, covs_fac){
   trainoutcome<-training$professional.diagnosis
   trainoutcome<-factor(ifelse(trainoutcome, "PD", "Control"))
