@@ -15,7 +15,6 @@ Imports:
   graphics,
   jsonlite,
   readr,
-  rgl,
   ggplot2,
   digest,
   plyr,
