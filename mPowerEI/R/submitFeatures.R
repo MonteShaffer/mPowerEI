@@ -291,6 +291,16 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 #' 
 #' We stop when the next feature to be added lowers the overall ROC.
 #' 
+#' setup multi-cores before call, if possible
+#' library(doMC);
+#' registerDoMC(cores = 16);
+#' 
+#' nested loop with stop
+#' find first feature with highest roc, place that in the system, loop by adding all remaining features, add one at a time until ROC isn't improving...
+#' default iCut
+#' 
+#' dframe = pfeats; xfeats=1:20; rnum=22;
+#' 
 #' @param dframe dataframe
 #' @param xfeats columns with features
 #' @param rnum number, column index or $r
@@ -301,13 +311,6 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 stepwiseFeatureSelection = function(dframe,xfeats,rnum)
 {
   tstart = Sys.time();
-  # dframe = pfeats; xfeats=1:20; rnum=22;
-  ## setup multi-cores before call, if possible
-  ## library(doMC);
-  ## registerDoMC(cores = 16);
-  
-  ## nested loop with stop
-  ## find first feature with highest roc, place that in the system, loop by adding all remaining features, add one at a time until ROC isn't improving...
   tpfeats = dampenOutliers(dframe,xfeats); # default iCut
   
   # benchmark
@@ -353,8 +356,6 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   # determine roc.nest first value;
   names(rocs) = roc.names;
 
-  
-  
   
   print("##  ############   first pass    ##################");	  
   
