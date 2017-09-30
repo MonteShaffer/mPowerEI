@@ -330,14 +330,72 @@ getPedometerFeatures = function(records,method="string")
 
 
 
-
-
-
-#' Analyze Features
+#' Get Features from Motion Data
 #'
-#' Graphs, Plots, and Play
-#' @return nothing
+#' @param records list of character strings of records.  From submission template, doesn't match audit 79168 - 79137
+#'
+#' @return dataframe of motion options
 #' @export
 #'
 
-analyzeFeatures = function() {}
+getMotionFeatures = function(records,method="string")
+{
+  
+  # we are building for testing, so will use all 79,000 records  ## 2.2 hours to build ...
+  tstart = Sys.time();
+  
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedF = paste(myO, paste(synapseProject,"MOTION",sep='-'), ".Rda", sep='');
+  
+  if(!file.exists(pedF))
+  {
+    pframe = data.frame();
+    
+    #records = names(audit$rclist);
+    rlen = length(records);
+    for(i in 1:rlen)
+    {
+      print(paste(i," of ",rlen)); flush.console();
+      #rv = records[i];
+      if(method == "string")
+      {
+        r = records[i];
+        rv = recordStringToVariable(r);
+      } else {
+        rv = records[i];
+        r = recordVariableToString(rv);
+      }
+      
+      rvObj = getMotionObject(rv);
+      
+      pfeat = getMotionFeaturesFromRecord(rvObj);
+      pframe = rbind(pframe,pfeat);
+      
+    }
+    
+    rownames(pframe) = records;
+    
+    tend = Sys.time();
+    
+    
+    save(pframe,file=pedF);
+  } else {
+    
+    load(pedF);
+    tend = Sys.time();
+  }
+  
+  timer = tend - tstart; 
+  print(timer);
+  
+  
+  
+  pframe;
+  
+}
+
+
+
+
+
