@@ -165,7 +165,8 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     # outer loop sets baseline	
     tpfeat = tpfeats[,c(rnum,xfeat)]; 
     resultme = NULL;
-    resultme = synapse.PD_score_challenge1(tpfeat); # namespace conflict
+    #resultme = synapse.PD_score_challenge1(tpfeat); # namespace conflict
+    resultme = PD_score_challenge1(tpfeat); # namespace conflict
     rocs[xfeat] = resultme$error$ROC;
     status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
     print(paste("######################",status,"######################"));
@@ -209,7 +210,9 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       xfeattemplist = c(roc.nest,xfeat); 
       tpfeat = tpfeats[,c(rnum,xfeattemplist)];
       
-      resultme = synapse.PD_score_challenge1(tpfeat);
+      resultme = NULL;
+      #resultme = synapse.PD_score_challenge1(tpfeat);
+      resultme = PD_score_challenge1(tpfeat);
       
       rocs[xfeat] = resultme$error$ROC;
       status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);

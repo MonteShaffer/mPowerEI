@@ -12,7 +12,7 @@
 #' @export
 #'
 
-synapse.loadSubmitLibraries = function()
+loadSubmitLibraries = function()
 {
   
   
@@ -49,7 +49,7 @@ synapse.loadSubmitLibraries = function()
 #' @return ensemble_model
 #' @export
 #'
-synapse.PD_score_challenge1<-function(training_features){
+PD_score_challenge1<-function(training_features){
   #manipulate incoming data into dataframe
   training_features<-as.data.frame(training_features)
   recordidname<-names(training_features)[1]
@@ -58,7 +58,7 @@ synapse.PD_score_challenge1<-function(training_features){
   
   print("Reading and merging covariates")
   #Read-in and merge covariates
-  training_features<-synapse.download_merge_covariate(training_features)
+  training_features<-download_merge_covariate(training_features)
   
   print("Summarizing the data")
   #Summarize by Median
@@ -77,7 +77,7 @@ synapse.PD_score_challenge1<-function(training_features){
     
     print("Fitting the model")
     #Fit model
-    ensemble_model<-synapse.fit_model(mediantraining, featurenames, covs_num, covs_fac)
+    ensemble_model<-fit_model(mediantraining, featurenames, covs_num, covs_fac)
   }
   
   return(ensemble_model)
@@ -93,7 +93,7 @@ synapse.PD_score_challenge1<-function(training_features){
 #' @return mergeddata with covariates (age/gender) from demos$
 #' @export
 #'
-synapse.download_merge_covariate<-function(features){
+download_merge_covariate<-function(features){
   
   #download correct covariates
   synid<-"syn10233116"
@@ -121,7 +121,7 @@ synapse.download_merge_covariate<-function(features){
 #' @return greedy_ensemble  
 #' @export
 #'
-synapse.fit_model<-function(training, featurenames, covs_num, covs_fac){
+fit_model<-function(training, featurenames, covs_num, covs_fac){
   trainoutcome<-training$professional.diagnosis
   trainoutcome<-factor(ifelse(trainoutcome, "PD", "Control"))
   
