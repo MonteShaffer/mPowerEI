@@ -154,6 +154,7 @@ loadSubmitLibraries = function()
 #'
 
 
+
 PD_score_challenge1<-function(training_features){
   #manipulate incoming data into dataframe
   training_features<-as.data.frame(training_features)
@@ -228,7 +229,6 @@ download_merge_covariate<-function(features){
 #'
 
 fit_model<-function(training, featurenames, covs_num, covs_fac){
-  
   trainoutcome<-training$professional.diagnosis
   trainoutcome<-factor(ifelse(trainoutcome, "PD", "Control"))
   
@@ -276,6 +276,157 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
     ))
   return(greedy_ensemble)
 }
+
+
+
+
+
+
+
+
+
+#' Select Best Features [Step-wise] to maximize ROC
+#'
+#' @param dframe dataframe
+#' @param xfeats columns with features
+#' @param rnum number, column index or $r
+#'
+#' @return list of results, roc.nest is the xfeats in order that matter
+#' @export
+#'
+stepwiseFeatureSelection = function(dframe,xfeats,rnum)
+{
+  # dframe = pfeats; xfeats=1:20; rnum=22;
+  ## setup multi-cores before call, if possible
+  ## library(doMC);
+  ## registerDoMC(cores = 16);
+  
+  ## nested loop with stop
+  ## find first feature with highest roc, place that in the system, loop by adding all remaining features, add one at a time until ROC isn't improving...
+  tpfeats = dampenOutliers(dframe,xfeats); # default iCut
+  
+  # benchmark
+  nobs = 275 + 178
+  tobs = 275;
+  bench = tobs / nobs;  # 0.607064
+  timers = list();
+  
+  
+  roc.gold = 0.91734137545722882;
+  roc.rndm = bench;
+  roc.continue = TRUE;
+  roc.current = roc.previous = 0;
+  roc.nest = NULL;
+  roc.list = xfeats;
+  roc.names = names(tpfeats)[roc.list];
+  roc.maxs = NULL;
+  rocsInner = list();
+  
+  
+  
+  rocs = NULL;
+  
+  roc.loop = 1;  roc.index = paste("X",roc.loop,sep='');
+    tstartOuter = Sys.time();
+  for(xfeat in roc.list)
+  {
+    tstartInner = Sys.time();
+    print(paste("######################",xfeat,"######################"));
+    # outer loop sets baseline	
+    tpfeat = tpfeats[,c(rnum,xfeat)]; 
+    resultme = NULL;
+    resultme = PD_score_challenge1(tpfeat);
+    rocs[xfeat] = resultme$error$ROC;
+    status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
+    print(paste("######################",status,"######################"));
+    tendInner = Sys.time(); timerInner = tendInner - tstartInner;
+      timers[[roc.index]][[xfeat]] = list(timer = timerInner, units = attr(timerInner,"units") )
+  }
+    tendOuter = Sys.time(); timerOuter = tendOuter - tstartOuter;
+      timers[[roc.index]]$outer = list(timer = timerOuter, units = attr(timerOuter,"units") )
+  rocs;
+  # determine roc.nest first value;
+  names(rocs) = roc.names;
+
+  
+  
+  
+  print("##  ############   first pass    ##################");	
+  
+  rocsInner[[roc.index]] = rocs;
+  
+  roc.sort = order(-rocs);	
+  roc.nest = c(roc.nest,roc.sort[1]);	
+  roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
+  roc.current = roc.previous = as.numeric(rocs[roc.sort[1]]);	# max is first element
+  roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+  
+  # next loop
+  roc.loop = roc.loop + 1; roc.index = paste("X",roc.loop,sep='');	
+  
+  
+  while(roc.continue==T)
+  {
+    print(paste("######################",roc.loop,"######################"));
+    rocs = NULL;
+    xfeattemp = roc.remaining;
+    xlentemp = length(xfeattemp);
+    for(i in 1:xlentemp)
+    {
+      xfeat = xfeattemp[i];
+      print(paste("######################",xfeat,"######################"));
+      print(paste(i," of ",xlentemp)); flush.console();  
+      print(paste("######################",xfeat,"######################"));
+      xfeattemplist = c(roc.nest,xfeat); 
+      tpfeat = tpfeats[,c(rnum,xfeattemplist)];
+      
+      resultme = PD_score_challenge1(tpfeat);
+      
+      rocs[xfeat] = resultme$error$ROC;
+      status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
+      print(paste("######################",status,"######################"));
+    }
+    
+    
+    
+    
+    
+    
+    names(rocs) = roc.names[roc.remaining];
+    rocsInner[[roc.index]] = rocs;
+    
+    roc.sort = order(-rocs);  # NAs?	properly sort
+    
+    roc.current = as.numeric(rocs[roc.sort[1]]);	
+    if(roc.previous > roc.current) 
+    { 
+      roc.continue = F;
+      print(roc.nest);
+      print(roc.names[roc.nest]);
+    } else {
+      roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
+      roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
+      roc.remaining = setdiff(roc.list,as.numeric(roc.nest));	
+      # next loop
+      roc.loop = roc.loop + 1;	
+      roc.previous = roc.current;
+    }
+    
+  }
+  
+  
+  
+  names(roc.nest) = roc.names[roc.nest];
+  
+  
+  
+  
+  
+  list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner)
+  
+}
+
+
 
 
 #' Dampen outliers
