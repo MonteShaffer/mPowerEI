@@ -296,8 +296,8 @@ fit_model<-function(training, featurenames, covs_num, covs_fac){
 #' @param rnum number, column index or $r
 #'
 #' @return list of results, roc.nest is the xfeats in order that matter
-#' @export
-#'
+#' @export 
+#' 
 stepwiseFeatureSelection = function(dframe,xfeats,rnum)
 {
   tstart = Sys.time();
