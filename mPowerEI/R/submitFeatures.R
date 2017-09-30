@@ -200,8 +200,10 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     rocs = NULL;
     xfeattemp = roc.remaining;
     xlentemp = length(xfeattemp);
+    tstartOuter = Sys.time();
     for(i in 1:xlentemp)
     { 
+      tstartInner = Sys.time();
       xfeat = xfeattemp[i];
       xfeattemplist = c(roc.nest,xfeat);
       print(paste("######################",xfeat,"######################"));
@@ -218,9 +220,13 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       rocs[xfeat] = resultme$error$ROC;
       status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
       print(paste("######################",status,"######################"));
+      
+      tendInner = Sys.time(); timerInner = tendInner - tstartInner; print(timerInner);
+      timers[[roc.index]][[xfeat]] = list(timer = timerInner, units = attr(timerInner,"units") )
     }
     
-    
+    tendOuter = Sys.time(); timerOuter = tendOuter - tstartOuter; print(timerOuter);
+    timers[[roc.index]]$outer = list(timer = timerOuter, units = attr(timerOuter,"units") )
     
     
     
