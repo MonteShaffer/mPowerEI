@@ -44,7 +44,7 @@ loadSynapse = function(configfile, login = TRUE, rememberMe = TRUE,
     }
     
   
-  library(synapseClient)
+  #library(synapseClient); # should include outside of this function ...
     synapseCacheDir(synapseCache)
     
     
