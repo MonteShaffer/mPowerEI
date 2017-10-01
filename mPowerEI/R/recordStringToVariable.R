@@ -57,7 +57,30 @@ recordVariableToString = function(r_,prepend="RECORD")
 
 
 
+#' Build Record Path from (rv)
+#' 
+#' requires audit$rclist
+#'
+#' @param rv 
+#'
+#' @return string, recordFolder
+#' @export
+#'
 
+getRecordPath = function (rv)
+{
+
+  # requires audit
+  r = recordVariableToString(rv);
+  rinfo=audit$rclist[[rv]];
+  hv = rinfo$info[1];
+  h = recordVariableToString(hv,prepend="HEALTH");
+  
+  userFolder = paste(localCache,"userObjects",hv,sep="/");
+  recordFolder = paste(userFolder,rv,sep="/");
+  
+  recordFolder;
+}
 
 
 
