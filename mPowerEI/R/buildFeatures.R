@@ -216,7 +216,7 @@ Mode <- function(x) {
 #'
 #' @return nlist truncated list with aligned timestamps based on motion
 #' @export
-#'
+#' 
 
 computeMotionWindow = function(olist,act)
 {

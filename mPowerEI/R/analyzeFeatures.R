@@ -329,7 +329,7 @@ getPedometerFeatures = function(records,method="string")
   pframe;
   
 }
-
+ 
 
 
 #' Get Features from Motion Data
