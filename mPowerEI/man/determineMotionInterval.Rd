@@ -4,7 +4,7 @@
 \alias{determineMotionInterval}
 \title{Determine if the accelerometer is active, drop noise before full on walking}
 \usage{
-determineMotionInterval(dframe, mot = "pos", act = "outbound")
+determineMotionInterval(integral, mot = "pos", act = "outbound")
 }
 \arguments{
 \item{dframe}{}

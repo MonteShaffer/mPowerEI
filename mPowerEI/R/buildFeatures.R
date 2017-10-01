@@ -78,11 +78,11 @@ adjustDriftLowess = function(xt,yi)
 #' @return list of first and last index, with updated yn zero-centered acceleration with drift ... 
 #' @export
 #'
-determineMotionInterval = function(dframe,mot="pos",act="outbound")
+determineMotionInterval = function(integral,mot="pos",act="outbound")
 {
   
-  xt = dframe$time;
-  yi = dframe[[mot]];
+  xt = integral$time;
+  yi = integral[[mot]];
     ymin = min(yi);
     ymax = max(yi);
               #plot(xt,yi,type="l",xlim=c(xmin,xmax),ylim=c(ymin,ymax));
@@ -112,30 +112,41 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
   {
   yminsearch = ymed - 2*yiqr;
   ymaxsearch = ymed + 2*yiqr;
+  
+  yminsearchIn = ymed - 1*yiqr;
+  ymaxsearchIn = ymed + 1*yiqr;
   } else {
     #yminsearch = ymean - 0.25* ysd;
     #ymaxsearch = ymean + 0.25* ysd;
     
-    yminsearch = ymed - 0.5*yiqr;
-    ymaxsearch = ymed + 0.5*yiqr;
+    yminsearch = ymed - 1*yiqr;
+    ymaxsearch = ymed + 1*yiqr;
+    
+    yminsearchIn = ymed - 0.5*yiqr;
+    ymaxsearchIn = ymed + 0.5*yiqr;
+    
+   
   }
   
             #abline(h=yminsearch,col="red");
             #abline(h=ymaxsearch,col="red");
+            
+            #abline(h=yminsearchIn,col="pink");
+            #abline(h=ymaxsearchIn,col="pink");
   #yminsearch = ymed - ysd;
   #ymaxsearch = ymed + ysd;
   
   # make certain it is in the window before we start to search if it is out
   # prevents edge spikes
-  infirst = which(yn > yminsearch & yn < ymaxsearch)[1];
-    firsts = which((yn < yminsearch | yn > ymaxsearch));
+  infirst = which(yn > yminsearchIn & yn < ymaxsearchIn)[1];
+    firsts = which((yn < yminsearchIn | yn > ymaxsearchIn));
   first = firsts[ which(firsts > infirst)[1] ];
   
   
   
   # reverse the vectors and search again ... 
-  inlast = length(yn) - which(rev(yn) > yminsearch & rev(yn) < ymaxsearch)[1];
-    lasts = length(yn) - which(rev(yn) < yminsearch | rev(yn) > ymaxsearch );
+  inlast = length(yn) - which(rev(yn) > yminsearchIn & rev(yn) < ymaxsearchIn)[1];
+    lasts = length(yn) - which(rev(yn) < yminsearchIn | rev(yn) > ymaxsearchIn );
   last = lasts[ which(lasts < inlast)[1] ];
             
   # find a way to skip good data ...          
@@ -169,10 +180,15 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
 
 getMAD = function(x)
 {
+  med = iqr = dx = dx_ = MAD = k = sigma = MADs = sx = fx = NA;
   
+
   # median absolute deviation
   # https://en.wikipedia.org/wiki/Median_absolute_deviation
   len = length(x);
+  print("MAD:");print(len);
+  if(len > 3)  # we need enough records
+  {
   med = median(x);
   iqr = IQR(x);
   dx = x - med;
@@ -207,6 +223,7 @@ getMAD = function(x)
   # +/- 3 sigma is good data?
   # filter values with NA
   fx = ( ifelse((sx < 3 & sx > -3), sx,NA) );
+  }
   
   list("median"=med,"IQR"=iqr,"MAD"=MAD,"k"=k,"sigma"=sigma,"MADs"=MADs,"sx"=sx,"fx"=fx,"x"=x,"dx"=dx);
   
@@ -252,8 +269,8 @@ computeMotionWindow = function(olist,act)
   
   for(d in setup$dims)
   {	
-    print(d);
-    oriented = as.data.frame(cbind(olist[[act]]$timestamp / 1000,olist[[act]][[d]]));
+    #print(d);
+    oriented = as.data.frame(cbind(dframe$timestamp / 1000,dframe[[d]]));
       datapoints = dim(oriented)[1];
       if(datapoints < 25) { return(NULL); } # don't need to do other dims
       
@@ -271,7 +288,7 @@ computeMotionWindow = function(olist,act)
       
   }
   
-  minidx=max(unlist(firsts));  if(minidx < 5) {minidx = 5;}  # truncate "bad angles"
+  minidx=max(unlist(firsts));  if(minidx < 3) {minidx = 3;}  # truncate "bad angles"
   maxidx=min(unlist(lasts));
   
   onlist = olist;
@@ -287,7 +304,9 @@ computeMotionWindow = function(olist,act)
   
   
   nlist = onlist[[act]][minidx:maxidx,];
-    if(dim(nlist)[1] < 25) { return(NULL); }
+  
+  
+    # if(dim(nlist)[1] < 25) { return(NULL); }
   
   
   nlist$Angles = NA;
@@ -314,6 +333,8 @@ computeMotionWindow = function(olist,act)
 #'
 getGlobalExtremesFromLocals = function(tpobj,dir="min",cuts=3)
 {
+  # need to keep track of previous max location ... prevent 1,1,1
+  # P:/_synapseCacheMonte/userObjects/HEALTH0049a4192bad47689e6493757c5e74b1/RECORDc12e0b3de7e24fbf9296e036270a6b80
   
   first = 1;
   last = first + cuts - 1;
@@ -344,7 +365,103 @@ getGlobalExtremesFromLocals = function(tpobj,dir="min",cuts=3)
 }
 
 
+#' Merge global extremes based on one-two constraint
+#'
+#' @param subMin 
+#' @param subMax 
+#' @param subMinE 
+#' @param subMaxE 
+#' @param animate if true, we plot and animate the results (e.g., debugging)
+#'
+#' @return list with updated values
+#' @export
+#'
 
+mergeExtremes = function(subMin,subMax,subMinE,subMaxE,animate=FALSE)
+{
+  
+  subMin;subMax; subMinE;subMaxE;
+  
+   
+  
+subFinal = list("subMinE"=c(),"subMaxE"=c(),"cValue"=c(), "cTime"=c());
+  minTimes = subMin$xt[subMinE];  minIdx = 1;
+  maxTimes = subMax$xt[subMaxE];  maxIdx = 1;
+  
+  if(animate)
+  {
+  xmin=min(subMin$xt[subMinE],subMax$xt[subMaxE]);
+  xmax=max(subMin$xt[subMinE],subMax$xt[subMaxE]);
+  
+  ymin=min(subMin$yi[subMinE],subMax$yi[subMaxE]);
+  ymax=max(subMin$yi[subMinE],subMax$yi[subMaxE]);
+  
+  plot(subMin$xt[subMinE],subMin$yi[subMinE],type="b",col="green",xlim=c(xmin,xmax),ylim=c(ymin,ymax))
+  par(new=T)
+  plot(subMax$xt[subMaxE],subMax$yi[subMaxE],type="b",col="red",xlim=c(xmin,xmax),ylim=c(ymin,ymax))
+  }
+  
+  # start
+  current = "min";
+  if(min(maxTimes) < min(minTimes)) { current = "max";}
+  
+  # look for next one that is has changed from globalMin to globalMax (and reverse)
+  while(minIdx <= length(minTimes))
+  {
+  #print(current);
+  if(current=="min")
+  {
+    # update based on current
+    subFinal$subMinE = c(subFinal$subMinE,subMinE[minIdx]);
+    # loop, update current value
+    cTime = minTimes[minIdx]; if(is.na(cTime)) { break; }
+    #print(subMinE[minIdx]); print(cTime);
+      subFinal$cTime = c(subFinal$cTime,cTime);
+      subFinal$cValue = c(subFinal$cValue,subMin$yi[ subMinE[minIdx] ]);
+    if(animate)
+    {
+    points(cTime,subMin$yi[ subMinE[minIdx] ], pch=24, col="green",bg="green");
+    Sys.sleep(1);
+    }
+    
+    current="max";
+    maxIdx = which(maxTimes > cTime)[1];
+    
+    if(is.na(maxIdx)) { break; }
+    
+    #print(maxIdx);
+    
+    
+  } else {
+    # update based on current
+    subFinal$subMaxE = c(subFinal$subMaxE,subMaxE[maxIdx]);
+    # loop, update current value
+    cTime = maxTimes[maxIdx]; if(is.na(cTime)) { break; }
+    #print(subMaxE[maxIdx]); print(cTime);
+      subFinal$cTime = c(subFinal$cTime,cTime);
+      subFinal$cValue = c(subFinal$cValue,subMax$yi[ subMaxE[maxIdx] ]);
+    if(animate)
+    {
+    points(cTime,subMax$yi[ subMaxE[maxIdx] ], pch=25, col="red",bg="red");
+    Sys.sleep(1);
+    }
+      
+    current = "min";
+    minIdx = which(minTimes > cTime)[1];
+    
+    if(is.na(minIdx)) { break; }
+    
+    #print(minIdx);
+  }
+    # end while loop
+    
+  }
+  
+  
+subFinal;
+
+
+}
 
 
 #' Compute Motion Details
@@ -387,7 +504,7 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
       {
         
         # set initial NA values
-        usefulTime = subExtremes = subDomain = minorCycles = minorHz = overallMin = overallMax = overallAmplitude = majorCycles = subLength = majorAmplitudeMedian = majorAmplitudeIQR = majorCycleTimeMAD = majorCycleOutOfBounds = majorHz = majorCycleTimeMedian = majorCycleTimeIQR = majorCycleTimeMAD = majorCycleOutOfBounds = NA;
+        usefulTime = subExtremes = subDomain = minorCycles = minorHz = overallMin = overallMax = overallAmplitude = majorCycles = subLength = majorAmplitudeMedian = majorAmplitudeIQR = majorCycleTimeMAD = majorCycleOutOfBounds = majorHz = majorCycleTimeMedian = majorCycleTimeIQR = majorCycleTimeMAD = majorCycleOutOfBounds = nAmplitudesExpansion = nAmplitudesContraction = NA;
         
         majorAmplitudes = majorDetails = NA;
         
@@ -397,6 +514,8 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
         dfxy = as.data.frame(cbind(dframe$timestamp,dframe[[d]])); 
         colnames(dfxy) = c("xt","yi");
         
+        if(length(dfxy$yi) > 4)
+        {
         tp = pastecs::turnpoints(dfxy$yi);
         
         subMin = dfxy[tp$pits,];  dim(subMin);
@@ -419,8 +538,18 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
         #diffMax = diff(subMax$xt); diffMax;
         #diffMaxMad = getMAD(diffMax); str(diffMaxMad);
         
-        subMinE = getGlobalExtremesFromLocals(subMin,"min",3);  subMinE;  # this matters
-        subMaxE = getGlobalExtremesFromLocals(subMax,"max",3);  subMaxE;
+        subMinE_ = getGlobalExtremesFromLocals(subMin,"min",3);  subMinE_;  # cuts matter
+        subMaxE_ = getGlobalExtremesFromLocals(subMax,"max",3);  subMaxE_;
+        
+        # let's merge and truncate ... may have overstated a single max
+        # P:\_synapseCacheMonte\userObjects\HEALTH0049a4192bad47689e6493757c5e74b1\RECORDc12e0b3de7e24fbf9296e036270a6b80\motion-details
+        
+        # subMin;subMax;subMinE;subMaxE;
+        
+        subFinal = mergeExtremes(subMin,subMax,subMinE_,subMaxE_);
+        
+          subMinE = subFinal$subMinE; subMinE;
+          subMaxE = subFinal$subMaxE; subMaxE;
         
         majorCycles = (length(subMinE) + length(subMaxE))/2;    majorCycles;
         
@@ -442,6 +571,17 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
         # proportion outside IQR  
         majorAmplitudeOutOfBounds = sum( abs(aMAD$dx) > aMAD$IQR) / subLength; 
         majorAmplitudeOutOfBounds;
+        
+        # let's do normed scores to capture compression
+        nAmplitudes = (majorAmplitudes)/min(majorAmplitudes);
+          nAmplitudesExpansion = max(nAmplitudes)-1;
+          
+        nAmplitudes = (majorAmplitudes)/max(majorAmplitudes);
+          nAmplitudesContraction = 1-min(nAmplitudes);
+        
+
+        
+        
         
         diff(range(timePointsMin))/1000;  diff(range(timePointsMax))/1000;
         
@@ -482,7 +622,9 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
           dev.off();
         }
         
-        result[[loo]][[d]] = list(usefulTime = usefulTime, subExtremes = subExtremes, subDomain = subDomain, minorCycles = minorCycles, minorHz = minorHz, overallMin = overallMin, overallMax = overallMax, overallAmplitude = overallAmplitude, majorCycles = majorCycles, subLength = subLength, majorAmplitudeMedian = majorAmplitudeMedian, majorAmplitudeIQR = majorAmplitudeIQR, majorCycleTimeMAD = majorCycleTimeMAD, majorCycleOutOfBounds = majorCycleOutOfBounds, majorHz = majorHz, majorCycleTimeMedian = majorCycleTimeMedian, majorCycleTimeIQR = majorCycleTimeIQR, majorCycleTimeMAD = majorCycleTimeMAD, majorCycleOutOfBounds = majorCycleOutOfBounds, majorAmplitudes = majorAmplitudes, majorDetails =majorDetails);
+        result[[loo]][[d]] = list(usefulTime = usefulTime, subExtremes = subExtremes, subDomain = subDomain, minorCycles = minorCycles, minorHz = minorHz, overallMin = overallMin, overallMax = overallMax, overallAmplitude = overallAmplitude, majorCycles = majorCycles, subLength = subLength, majorAmplitudeMedian = majorAmplitudeMedian, majorAmplitudeIQR = majorAmplitudeIQR, majorCycleTimeMAD = majorCycleTimeMAD, majorCycleOutOfBounds = majorCycleOutOfBounds, majorHz = majorHz, majorCycleTimeMedian = majorCycleTimeMedian, majorCycleTimeIQR = majorCycleTimeIQR, majorCycleTimeMAD = majorCycleTimeMAD, majorCycleOutOfBounds = majorCycleOutOfBounds, majorAmplitudes = majorAmplitudes, majorDetails =majorDetails, nAmplitudesExpansion=nAmplitudesExpansion, nAmplitudesContraction=nAmplitudesContraction);
+        
+        } # end of turnpoints length        
         
       } # end of d
       

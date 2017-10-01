@@ -390,7 +390,7 @@ getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
         pframe = rbind(pframe,pfeat);
       }
       
-      Sys.sleep(5);
+      #Sys.sleep(5);
       
     }
     
