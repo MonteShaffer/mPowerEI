@@ -40,6 +40,8 @@ compareRecords = function(submitr, auditr)
 #' We loop again to replace global median values
 #' 
 #' [TODO: address extreme outliers]
+#' [TODO: add $imputed variable to dataframe 0 or 1]
+#' 
 #'
 #' @param dframe dataframe with NA, NAN, INF, -INF values
 #' @param myC columns to imputate
@@ -338,12 +340,14 @@ getPedometerFeatures = function(records,method="string")
 #' @export
 #'
 
-getMotionFeatures = function(records,method="string")
+getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
 {
   
   # we are building for testing, so will use all 79,000 records  ## 2.2 hours to build ...
+  # we can parallelize by caching the local objects
   tstart = Sys.time();
   
+  #records = sample(records);
   
   myO = paste(localCache,"summaryObjects","",sep="/");
   pedF = paste(myO, paste(synapseProject,"MOTION",sep='-'), ".Rda", sep='');
@@ -356,7 +360,7 @@ getMotionFeatures = function(records,method="string")
     rlen = length(records);
     for(i in 1:rlen)
     {
-      print(paste(i," of ",rlen)); flush.console();
+      
       #rv = records[i];
       if(method == "string")
       {
@@ -367,10 +371,20 @@ getMotionFeatures = function(records,method="string")
         r = recordVariableToString(rv);
       }
       
-      rvObj = getMotionObject(rv);
+      print(paste(i," of ",rlen)); 
+      print(rv);
+      print("######################################");
+      flush.console();
       
-      pfeat = getMotionFeaturesFromRecord(rvObj);
-      pframe = rbind(pframe,pfeat);
+      #rvObj = getMotionObject(rv);
+      
+      #pfeat = getMotionFeaturesFromRecord(rv,rvObj,plotme);
+      pfeat = getMotionFeaturesFromRecord(rv,plotme);
+      stop();
+      if(finalize)
+        {
+        pframe = rbind(pframe,pfeat);
+        }
       
     }
     
@@ -378,8 +392,10 @@ getMotionFeatures = function(records,method="string")
     
     tend = Sys.time();
     
-    
+    if(finalize)
+    {
     save(pframe,file=pedF);
+    }
   } else {
     
     load(pedF);

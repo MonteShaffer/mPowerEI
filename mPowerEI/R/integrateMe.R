@@ -26,9 +26,19 @@ integrateMe <- function(x, y, method = "trapezoid")
     area = pracma::trapz(x,y);
     cum = pracma::cumtrapz(x,y);
     
-    list(area=area,dydx=as.vector(cum));
+    list(area=area,dydx=as.vector(cum),integral=c(0,diff(as.vector(cum))));
 }
 
+
+
+doIntegration = function(xt,yi)
+{
+  int = integrateMe(xt,yi);	
+  int2 = integrateMe(xt,int$integral);
+  dframe = cbind(xt,yi,int$integral,int2$integral);
+    colnames(dframe) = c("time","acc","vel","pos");
+  as.data.frame(dframe);	
+}
 
 
 
@@ -90,7 +100,10 @@ convertUnits <- function(x,from="g",to="m/s^2")
 #' 
 computeAngle = function(v1,v2, out="radians")
 {
-  v1_ = vectorMagnitude(v1);
+  v1 = as.numeric(v1);
+  v2 = as.numeric(v2);
+  
+  v1_ = vectorMagnitude(v1);  # is NA if one is zero (https://math.stackexchange.com/questions/2410733/angle-between-two-vector-when-one-vector-is-zero)
   v2_ = vectorMagnitude(v2);
   
   cosTheta = pracma::dot(v1,v2) / (v1_ * v2_);
@@ -108,7 +121,7 @@ computeAngle = function(v1,v2, out="radians")
 
 # vraw = as.numeric(tlist$outbound$accel[1,-1]);
 # vrotated = ???
-# vrotated = vraw%*%gRotatedMatrix;
+# vrotated = vraw%*%gRotatedMatrix;computeAngle(outbound[1,2:4],outbound[2,2:4]);
 
 
 #' Determine length or magnitude of n-dim vector
