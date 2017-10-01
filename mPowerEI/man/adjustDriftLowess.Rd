@@ -16,5 +16,5 @@ updated yi
 }
 \description{
 Assume walking in straight line so x,y,z should all be straight
-Assume mode is zero
+Assume mean is zero-ish
 }
