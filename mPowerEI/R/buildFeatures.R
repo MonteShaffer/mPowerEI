@@ -358,7 +358,7 @@ getGlobalExtremesFromLocals = function(tpobj,dir="min",cuts=3)
 #'
 
 computeMotionDetails = function(rv,info,plotme=TRUE)
-{
+{ 
   
   recordFolder = paste( getRecordPath(rv), "motion-details", "",sep="/");
   
@@ -371,9 +371,11 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
   {
     dframe = info[[loo]];  
     
+    print(dim(dframe));
     
+    if(is.null(dframe)){ next; }
     
-    if(!is.null(dframe))
+    #if(!is.null(dframe))
     {
       
       
@@ -404,7 +406,7 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
         subDomain = diff(range(subMin$xt)) / 1000; subDomain; # seconds	
         
         minorCycles = subExtremes/2;      minorCycles;
-        minorHz = microCycles/subDomain;  minorHz;
+        minorHz = minorCycles/subDomain;  minorHz;
         
         overallMin = min(subMin$yi); overallMin;
         overallMax = max(subMax$yi); overallMax;
@@ -522,8 +524,8 @@ getMotionFeaturesFromRecord = function(rv,plotme=TRUE)
   
   if(file.exists(recordFile)) 
   {
-  load(recordFile);
-    return(recordObj);
+  #load(recordFile);
+  #  return(recordObj);
   }
   
   outbound = returnwalk = resting = NULL;
