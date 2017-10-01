@@ -22,4 +22,5 @@ We loop again to replace global median values
 }
 \details{
 [TODO: address extreme outliers]
+[TODO: add $imputed variable to dataframe 0 or 1]
 }

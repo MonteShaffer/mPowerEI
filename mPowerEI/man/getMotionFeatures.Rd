@@ -4,13 +4,20 @@
 \alias{getMotionFeatures}
 \title{Get Features from Motion Data}
 \usage{
-getMotionFeatures(records, method = "string")
+getMotionFeatures(records, method = "string", finalize = FALSE,
+  plotme = TRUE)
 }
 \arguments{
 \item{records}{list of character strings of records.  From submission template, doesn't match audit 79168 - 79137}
+
+\item{method}{is the records list "string" or "variable(s)"}
+
+\item{finalize}{if true, we will merge into a large object; if false, we can sample(records) and run multiple instances to speed up process}
+
+\item{plotme}{if true, we build PDF images in motion-details subfolder of RECORD}
 }
 \value{
-dataframe of motion options
+dataframe of motion options [we can later further manipulate]
 }
 \description{
 Get Features from Motion Data

@@ -4,13 +4,15 @@
 \alias{getMotionFeaturesFromRecord}
 \title{Motion Features}
 \usage{
-getMotionFeaturesFromRecord(rvObj)
+getMotionFeaturesFromRecord(rv, plotme = TRUE)
 }
 \arguments{
-\item{rvObj}{}
+\item{rv}{record identifier in variable form [rv]}
+
+\item{plotme}{if true, we plot to a PDF file in the folder "motion-details" of the RECORD}
 }
 \value{
-list of features
+list of features [recordObj]
 }
 \description{
 Motion Features
