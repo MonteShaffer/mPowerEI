@@ -100,7 +100,7 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
   ymean = mean(yn);
   yiqr = IQR(yn);
   ysd = sd(yn);
-              abline(h=ymed,col="gray");
+              #abline(h=ymed,col="gray");
   
     
   # if data is pretty normal, IQR doesn't work well ... 

@@ -31,8 +31,22 @@ integrateMe <- function(x, y, method = "trapezoid")
 
 
 
+#' doIntegration
+#'
+#' Input is xt, acc
+#' 
+#' Output is xt (time) with acc, vel, pos
+#' Performs first and second integral
+#' 
+#' @param xt 
+#' @param yi 
+#'
+#' @return dataframe with time, acc, vel, pos
+#' @export
+#'
 doIntegration = function(xt,yi)
 {
+
   int = integrateMe(xt,yi);	
   int2 = integrateMe(xt,int$integral);
   dframe = cbind(xt,yi,int$integral,int2$integral);

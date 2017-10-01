@@ -384,11 +384,13 @@ getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
       
       #pfeat = getMotionFeaturesFromRecord(rv,rvObj,plotme);
       pfeat = getMotionFeaturesFromRecord(rv,plotme);
-      stop();
+      #stop();
       if(finalize)
         {
         pframe = rbind(pframe,pfeat);
-        }
+      }
+      
+      Sys.sleep(5);
       
     }
     
