@@ -46,7 +46,7 @@ getMotionObject = function (rv)
 #' Adjust position based on lowess
 #' 
 #' Assume walking in straight line so x,y,z should all be straight
-#' Assume mode is zero
+#' Assume mean is zero-ish
 #'
 #' @param xt 
 #' @param yi 
@@ -83,11 +83,15 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
   
   xt = dframe$time;
   yi = dframe[[mot]];
+    ymin = min(yi);
+    ymax = max(yi);
+              #plot(xt,yi,type="l",xlim=c(xmin,xmax),ylim=c(ymin,ymax));
   
   yn = adjustDriftLowess(xt,yi);  # leveled, mean-center = 0
     ymin = min(yn);
     ymax = max(yn);
     yrange = ymax - ymin;
+              #plot(xt,yn,type="l",xlim=c(xmin,xmax),ylim=c(ymin,ymax));
     
     xmin = min(xt);
     xmax = max(xt);
@@ -96,6 +100,13 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
   ymean = mean(yn);
   yiqr = IQR(yn);
   ysd = sd(yn);
+              abline(h=ymed,col="gray");
+  
+    
+  # if data is pretty normal, IQR doesn't work well ... 
+  # rv="RECORDa3e54d84360e4e8a9534de188d5fa9e1";
+  
+  # find a way to skip good data ...
   
   if(act != "rest")
   {
@@ -109,6 +120,8 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
     ymaxsearch = ymed + 0.5*yiqr;
   }
   
+            #abline(h=yminsearch,col="red");
+            #abline(h=ymaxsearch,col="red");
   #yminsearch = ymed - ysd;
   #ymaxsearch = ymed + ysd;
   
@@ -119,10 +132,20 @@ determineMotionInterval = function(dframe,mot="pos",act="outbound")
   first = firsts[ which(firsts > infirst)[1] ];
   
   
+  
   # reverse the vectors and search again ... 
   inlast = length(yn) - which(rev(yn) > yminsearch & rev(yn) < ymaxsearch)[1];
     lasts = length(yn) - which(rev(yn) < yminsearch | rev(yn) > ymaxsearch );
   last = lasts[ which(lasts < inlast)[1] ];
+            
+  # find a way to skip good data ...          
+  if(is.na(first)) { first = 1;}   
+  if(is.na(last)) { last = length(xt);} 
+            
+            #abline(v=xt[first],col="blue");
+            #abline(v=xt[last],col="blue");
+            
+            
   
   ynn = adjustDriftLowess(xt[first:last],yi[first:last]);
   
@@ -225,9 +248,11 @@ computeMotionWindow = function(olist,act)
   firsts = list();
   lasts = list();
   
+  dframe = olist[[act]];
+  
   for(d in setup$dims)
   {	
-    #print(d);
+    print(d);
     oriented = as.data.frame(cbind(olist[[act]]$timestamp / 1000,olist[[act]][[d]]));
       datapoints = dim(oriented)[1];
       if(datapoints < 25) { return(NULL); } # don't need to do other dims
