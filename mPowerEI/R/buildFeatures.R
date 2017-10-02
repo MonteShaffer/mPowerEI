@@ -654,6 +654,8 @@ computeMotionDetails = function(rv,info,plotme=TRUE)
 getMotionFeaturesFromRecord = function(rv,plotme=TRUE)
 {
   
+  
+  
   rvObj = getMotionObject(rv);
   
   recordObj = list();
@@ -664,10 +666,10 @@ getMotionFeaturesFromRecord = function(rv,plotme=TRUE)
     rawF = paste(setup$designpoint,"motionDetails.Rda",sep="-");
   recordFile = paste(recordFolder,rawF,sep="");
   
-  if(file.exists(recordFile)) 
+  if(file.exists(recordFile))  
   {
-  #load(recordFile);
-  #  return(recordObj);
+  load(recordFile);
+    return(recordObj);
   }
   
   outbound = returnwalk = resting = NULL;
@@ -741,6 +743,204 @@ save(recordObj, file=recordFile);
 
 
 
+#' Build Flatted Motion-Features dataframe
+#'
+#' @param records list of character strings of records.  From submission template, doesn't match audit 79168 - 79137
+#' @param method is the records list "string" or "variable(s)"
+#'
+#' @return dataframe  features, then $r and $h
+#' @export
+#'
+
+finalMotionFeatures = function(records,method="string")
+{
+  
+  
+  # assumes the large object is build
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedF = paste(myO, paste(synapseProject,"MOTION",sep='-'), ".Rda", sep='');
+  print(paste("Loading ... pedF"));
+  tstart = Sys.time();
+  load(pedF);
+  tend = Sys.time();
+  timer = tend - tstart; 
+  print(timer);
+ 
+  
+  tstart = Sys.time(); 
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFr = paste(myO, paste(synapseProject,"MOTION-ready",sep='-'), ".txt", sep='');
+  
+  print(paste("Writing to ... pedFr"));
+  print(pedFr);
+  
+  
+  
+  # pfeats$rv
+  # names(pfeats);
+  # names(pfeats[[rv]]);
+  # names(pfeats[[rv]]$motionWindow);
+  # names(pfeats[[rv]]$angles);
+  # names(pfeats[[rv]]$more$resting$x);
+  
+  rlen = length(records);
+  
+  nrecords = NULL;
+  
+  mfeats = NULL;
+  
+  
+  for(i in 1:rlen)
+  {
+   ## if(i==9){stop();}
+    print(paste(i," of ",rlen)); flush.console();  
+    #rv = records[i];
+    if(method == "string")
+    {
+      r = records[i];
+      rv = recordStringToVariable(r);
+    } else {
+      rv = records[i];
+      r = recordVariableToString(rv);
+    }
+    
+    nrecords[i] = r;
+    
+    rinfo=audit$rclist[[rv]];
+      hv = rinfo$info[1];
+      h = recordVariableToString(hv,prepend="HEALTH");
+    rdata = pfeats[[rv]];
+    
+    rown = NULL; # numbers
+    
+    
+    ffeats = NULL;
+    print("###############################################################");
+    feats = c("walkingACCMED", "walkingACCMAD", "walkingACCIQR", "restingACCMED", "restingACCMAD", "restingACCIQR", "walkingPOSMED", "walkingPOSMAD", "walkingPOSIQR", "restingPOSMED", "restingPOSMAD", "restingPOSIQR");
+    
+    for(feat in feats)
+    {
+      rown = c(rown,rdata$angles[[feat]]);  
+      ffeats = c(ffeats,feat);
+    }
+    print("###############################################################");    
+    feats = c("usefulSecondsResting", "usefulSecondsOutbound", "usefulSecondsReturn");
+    
+    usefulSecondsResting = usefulSecondsOutbound = usefulSecondsReturn = 0; # 0 = no data
+    
+    
+    if(!is.null(rdata$more$outbound$x$usefulTime)) 
+    { usefulSecondsOutbound = rdata$more$outbound$x$usefulTime; }
+    if(!is.null(rdata$more$resting$x$usefulTime)) 
+    { usefulSecondsResting = rdata$more$resting$x$usefulTime; }
+    if(!is.null(rdata$more$returnwalk$x$usefulTime)) 
+    { usefulSecondsReturn = rdata$more$returnwalk$x$usefulTime; }
+    
+    
+    for(feat in feats)
+    {
+      rown = c(rown,get(feat));  
+      ffeats = c(ffeats,feat);
+    }
+    
+    print("###############################################################");
+    feats = c("subExtremes", "subDomain", "minorCycles", "minorHz", "overallMin", "overallMax", "overallAmplitude", "majorCycles", "subLength", "majorAmplitudeMedian", "majorAmplitudeIQR", "majorCycleTimeMAD", "majorCycleOutOfBounds", "majorHz", "majorCycleTimeMedian", "majorCycleTimeIQR", "majorCycleTimeMAD", "majorCycleOutOfBounds", "nAmplitudesExpansion", "nAmplitudesContraction");
+    
+    threes = c("min","median","max");
+    dirs = c("outbound","returnwalk","resting");
+    
+    for(dire in dirs)
+    {
+      for(feat in feats)
+      {
+        x=y=z=NA;
+        
+        if(!is.null(rdata$more[[dire]]$x[[feat]]))
+        {
+          x = rdata$more[[dire]]$x[[feat]];
+        }
+        
+        if(!is.null(rdata$more[[dire]]$y[[feat]]))
+        {
+          y = rdata$more[[dire]]$y[[feat]];
+        }
+        
+        if(!is.null(rdata$more[[dire]]$z[[feat]]))
+        {
+          z = rdata$more[[dire]]$z[[feat]];
+        }
+        # "RETURNWALKsubExtremesMEDIAN"
+        # dire="returnwalk"
+        # feat="subExtremes"
+        # three="median"
+        
+        xyz = as.numeric(na.omit(c(x,y,z)));  # generally all or nothing
+        
+        MIN = MAX = MEDIAN = NA;
+        if(length(xyz > 0))
+        {
+          MIN = min(c(x,y,z),na.rm =T);  
+          MAX = max(c(x,y,z),na.rm =T);
+          MEDIAN = median(c(x,y,z),na.rm =T);
+        } 
+        
+              for(three in threes)
+              {
+                nfeat = paste(toupper(dire),feat,toupper(three),sep="");
+                
+                rown = c(rown,get(toupper(three)));  
+                ffeats = c(ffeats,nfeat);
+              }
+      }
+    }
+    
+    
+    
+    # min,max, median ... set NA ... # ... 
+    
+    
+    # restingffeats
+    # walking with return
+    # x,y,z to 1,2,3 ? subExtremes order from highest to lowest ... or order each varialbe by highest to lowest ... ? probably the latter
+    
+    # names(pfeats[[rv]]$more$resting
+    
+    
+    ##mfeats = rbind(mfeats,rown);
+    
+    
+    if(i==1)
+      {
+      x = as.list(c("r","rv","h","hv",ffeats));
+      data.table::fwrite(x, file=pedFr,append=F,quote=F,na="NA",sep="|");
+      }
+    x = as.list(c(r,rv,h,hv,rown));
+    data.table::fwrite(x, file=pedFr,append=T,quote=F,na="NA",sep="|");
+    
+    
+  }
+  
+  
+  
+  
+  ##mfeats = as.data.frame(mfeats);
+    ##colnames(mfeats) = ffeats;
+    ##rownames(mfeats) = nrecords;
+  
+  # faster if I did fwrite, one row at a time
+  # still have to imputate ... 
+  
+  
+  ##mfeats;
+  
+  
+  tend = Sys.time();
+  timer = tend - tstart; 
+  print(timer);
+  
+  
+}
 
 
 #' Pedometer Features

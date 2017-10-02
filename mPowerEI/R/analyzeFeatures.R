@@ -150,11 +150,12 @@ imputateDataFrame = function(dframe,myC)
 #' @export
 #'
 
-appendRecordData = function(pframe,missingrecords)  # 6.6 minutes if not cached...
+appendRecordData = function(pframe,missingrecords,fileN="PEDOMETER-HEALTH")  # 6.6 minutes if not cached...
 {
   # 3 minutes
   myO = paste(localCache,"summaryObjects","",sep="/");
-  pedF = paste(myO, paste(synapseProject,"PEDOMETER-HEALTH",sep='-'), ".Rda", sep='');
+ # pedF = paste(myO, paste(synapseProject,"PEDOMETER-HEALTH",sep='-'), ".Rda", sep='');
+  pedF = paste(myO, paste(synapseProject,fileN,sep='-'), ".Rda", sep='');
   tstart = Sys.time();
   
   
@@ -358,7 +359,7 @@ getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
   
   if(!file.exists(pedF))
   {
-    pframe = data.frame();
+    pfeats = list();
     
     #records = names(audit$rclist);
     rlen = length(records);
@@ -383,24 +384,24 @@ getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
       #rvObj = getMotionObject(rv);
       
       #pfeat = getMotionFeaturesFromRecord(rv,rvObj,plotme);
-      pfeat = getMotionFeaturesFromRecord(rv,plotme);
+      #pfeat = getMotionFeaturesFromRecord(rv,plotme);
+      
       #stop();
       if(finalize)
         {
-        pframe = rbind(pframe,pfeat);
-      }
-      
+        pfeats[[rv]] = getMotionFeaturesFromRecord(rv,plotme);
+      } else { getMotionFeaturesFromRecord(rv,plotme); } 
       #Sys.sleep(5);
       
     }
     
-    rownames(pframe) = records;
+   # rownames(pframe) = records;
     
     tend = Sys.time();
     
     if(finalize)
     {
-    save(pframe,file=pedF);
+    save(pfeats,file=pedF);
     }
   } else {
     
@@ -413,7 +414,7 @@ getMotionFeatures = function(records,method="string",finalize=FALSE,plotme=TRUE)
   
   
   
-  pframe;
+  pfeats;
   
 }
 

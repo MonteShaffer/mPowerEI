@@ -4,7 +4,7 @@
 \alias{appendRecordData}
 \title{Appends health record information}
 \usage{
-appendRecordData(pframe, missingrecords)
+appendRecordData(pframe, missingrecords, fileN = "PEDOMETER-HEALTH")
 }
 \arguments{
 \item{dframe}{}

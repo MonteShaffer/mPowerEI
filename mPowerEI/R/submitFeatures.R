@@ -295,7 +295,7 @@ dampenOutliers = function(dframe,xfeats,iCut=6)
  
   rframe = dframe;
   xlen = length(xfeats);
-  xnames = names(pfeats[,xfeats]);
+  xnames = names(dframe[,xfeats]);
   for(i in 1:xlen)
     {
     xname = xnames[i];
