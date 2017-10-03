@@ -162,6 +162,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   {
     tstartInner = Sys.time();
     print(paste("######################",xfeat,"######################"));
+print(paste("######################",names(tpfeats)[xfeat],"######################"));
     # outer loop sets baseline	
     tpfeat = tpfeats[,c(rnum,xfeat)]; 
     resultme = NULL;
@@ -188,11 +189,31 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   roc.nest = c(roc.nest,roc.sort[1]);	
   roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
   roc.current = roc.previous = as.numeric(rocs[roc.sort[1]]);	# max is first element
-  roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+  
+  
+  
+  # tfeat = # truncate features for only positive ROCS
+  # maybe do this at every stage ... this will make hierarchy run faster ...
+  compareto = roc.rndm;
+  roc.diff = rocs - compareto;
+  
+  roc.ignore.1 = roc.ignore = c(as.numeric(roc.nest),as.numeric(which(roc.diff < -0.005))); # if zero, we may lose one e.g., #20 from pedometer ... interaction effects.
+  
+  
+  #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+  roc.remaining = setdiff(roc.list,roc.ignore);
+  
+  print(roc.remaining);
+  
+ # myList = list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
+  
+ # data.table::fwrite(myList,file="bigrun.txt");
+  
   
   # next loop
   roc.loop = roc.loop + 1; roc.index = paste("X",roc.loop,sep='');	
   
+  # 19                4               15               20 
   
   while(roc.continue==T)
   {
@@ -207,6 +228,7 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       xfeat = xfeattemp[i];
       xfeattemplist = c(roc.nest,xfeat);
       print(paste("######################",xfeat,"######################"));
+print(paste("######################",names(tpfeats)[xfeat],"######################"));
       print(paste(i," of ",xlentemp)); flush.console();  
       print( c(rnum,xfeattemplist) );
       print(paste("######################",xfeat,"######################"));
@@ -220,6 +242,9 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
       rocs[xfeat] = resultme$error$ROC;
       status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
       print(paste("######################",status,"######################"));
+      status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.previous);
+      print(paste("######################",status,"######################"));
+      
       
       tendInner = Sys.time(); timerInner = tendInner - tstartInner; print(timerInner);
       timers[[roc.index]][[xfeat]] = list(timer = timerInner, units = attr(timerInner,"units") )
@@ -236,22 +261,67 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
     
     roc.sort = order(-rocs);  # NAs?	properly sort
     
-    roc.current = as.numeric(rocs[roc.sort[1]]);	
+    roc.current = as.numeric(rocs[roc.sort[1]]);
+    
+    
+    
+    
     if(roc.previous > roc.current) 
     { 
       roc.continue = F;
       print(roc.nest);
       print(roc.names[roc.nest]);
     } else {
+      
+      
+      # tfeat = # truncate features for only positive ROCS
+      # maybe do this at every stage ... this will make hierarchy run faster ... 
+
+      compareto = roc.current;
+      roc.diff = rocs - compareto;
+      
+      
+      
+      # 19                4               15               20 
+      
       roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
       roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
-      roc.remaining = setdiff(roc.list,as.numeric(roc.nest));	
+      #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+      
+      roc.ignore = unique(c(as.numeric(roc.nest),roc.ignore,as.numeric(which(roc.diff < -0.05)))); # if zero, we may lose one e.g., #20 from pedometer # as we get deeper, let's make the cut more relevant ... interaction effects.
+      
+      
+      #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+      roc.remaining = setdiff(roc.list,roc.ignore);
+      
+      print(roc.remaining);
+      
       # next loop
       roc.loop = roc.loop + 1;	roc.index = paste("X",roc.loop,sep='');
       roc.previous = roc.current;
-    }
+    } # end for loop
     
-  }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  } # end while
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   tend = Sys.time();
   timerTotal = tend - tstart;  print(timerTotal);
@@ -263,7 +333,10 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   
   
   
-  list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
+  myList = list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
+  
+  
+  myList;
   
 }
 
