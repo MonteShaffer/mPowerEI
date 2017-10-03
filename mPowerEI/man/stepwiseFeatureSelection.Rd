@@ -4,7 +4,8 @@
 \alias{stepwiseFeatureSelection}
 \title{Select Best Features [Step-wise] to maximize ROC}
 \usage{
-stepwiseFeatureSelection(dframe, xfeats, rnum)
+stepwiseFeatureSelection(dframe, xfeats, rnum, fastignore = TRUE,
+  ignoreme = c(0, 0), startfeats = NULL)
 }
 \arguments{
 \item{dframe}{dataframe}
@@ -12,6 +13,12 @@ stepwiseFeatureSelection(dframe, xfeats, rnum)
 \item{xfeats}{columns with features}
 
 \item{rnum}{number, column index or $r}
+
+\item{fastignore}{if true, we will drop any negative ROC deltas}
+
+\item{ignoreme}{if fastignore=true, these are the values to drop default 0,0 ... the first is for the first pass, the latter is for the second pass.  by default negative ROC deltas}
+
+\item{startfeats}{a numeric vector to start... startfeats = c(151,13,76) ... this would predefine the first set of features, enables restarts ... [we have also updated the Rerror.txt to cache individual 'unique' ensemble calls]}
 }
 \value{
 list of results, roc.nest is the xfeats in order that matter

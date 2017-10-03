@@ -126,6 +126,9 @@ codeHealthState = function(dframe)
 #' @param dframe dataframe
 #' @param xfeats columns with features
 #' @param rnum number, column index or $r
+#' @param fastignore if true, we will drop any negative ROC deltas
+#' @param ignoreme  if fastignore=true, these are the values to drop default 0,0 ... the first is for the first pass, the latter is for the second pass.  by default negative ROC deltas
+#' @param startfeats a numeric vector to start... startfeats = c(151,13,76) ... this would predefine the first set of features, enables restarts ... [we have also updated the Rerror.txt to cache individual 'unique' ensemble calls]  
 #'
 #' @return list of results, roc.nest is the xfeats in order that matter
 #' @export 
