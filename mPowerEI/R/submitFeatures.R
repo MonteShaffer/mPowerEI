@@ -130,7 +130,7 @@ codeHealthState = function(dframe)
 #' @return list of results, roc.nest is the xfeats in order that matter
 #' @export 
 #' 
-stepwiseFeatureSelection = function(dframe,xfeats,rnum)
+stepwiseFeatureSelection = function(dframe,xfeats,rnum,fastignore=TRUE,ignoreme=c(0,0),startfeats=NULL)
 {
   tstart = Sys.time();
   tpfeats = dampenOutliers(dframe,xfeats); # default iCut
@@ -151,9 +151,10 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum)
   roc.names = names(tpfeats)[roc.list];
   roc.maxs = NULL;
   rocsInner = list();
+  roc.ignore = NULL;
   
-  
-  
+  if(is.null(startfeats))
+  {
   rocs = NULL;
   
   roc.loop = 1;  roc.index = paste("X",roc.loop,sep='');
@@ -197,17 +198,35 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
   compareto = roc.rndm;
   roc.diff = rocs - compareto;
   
-  roc.ignore.1 = roc.ignore = c(as.numeric(roc.nest),as.numeric(which(roc.diff < -0.005))); # if zero, we may lose one e.g., #20 from pedometer ... interaction effects.
+  roc.ignore.1 = roc.ignore = c(as.numeric(roc.nest),as.numeric(which(roc.diff < ignoreme[1]))); # if zero, we may lose one e.g., #20 from pedometer ... interaction effects.
+    # was -0.005
   
+  if(fastignore==T){
+    roc.remaining = setdiff(roc.list,roc.ignore);
+  }else{
+    roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+  }
   
-  #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
-  roc.remaining = setdiff(roc.list,roc.ignore);
+  #
+  } else {
+    # we have starting features, so let's get to it... # allows us to restart at a certain point ... 
+    roc.nest = as.numeric(startfeats);
+    roc.loop = length(startfeats)-1; # we will immediately iterate to the next one
+    roc.index = paste("X",roc.loop,sep='');
+    roc.remaining = setdiff(roc.list,roc.nest);
+    
+    # we don't have a roc.current/previous so the first inner loop will not truncate well
+  }
+  
   
   print(roc.remaining);
   
  # myList = list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
   
  # data.table::fwrite(myList,file="bigrun.txt");
+  
+  print(paste("######################",roc.loop,"######################"));
+  
   
   
   # next loop
@@ -288,11 +307,15 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
       roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
       #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
       
-      roc.ignore = unique(c(as.numeric(roc.nest),roc.ignore,as.numeric(which(roc.diff < -0.05)))); # if zero, we may lose one e.g., #20 from pedometer # as we get deeper, let's make the cut more relevant ... interaction effects.
+      roc.ignore = unique(c(as.numeric(roc.nest),roc.ignore,as.numeric(which(roc.diff < ignoreme[2])))); # if zero, we may lose one e.g., #20 from pedometer # as we get deeper, let's make the cut more relevant ... interaction effects.
+      # was -0.05
       
+      if(fastignore==T){
+        roc.remaining = setdiff(roc.list,roc.ignore);
+      }else{
+        roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+      }
       
-      #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
-      roc.remaining = setdiff(roc.list,roc.ignore);
       
       print(roc.remaining);
       
@@ -338,7 +361,7 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
   
   myList;
   
-}
+} 
 
 
 

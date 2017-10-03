@@ -50,11 +50,30 @@ loadSubmitLibraries = function()
 #' @export
 #'
 PD_score_challenge1<-function(training_features){
+  
+  
   #manipulate incoming data into dataframe
   training_features<-as.data.frame(training_features)
   recordidname<-names(training_features)[1]
   featurenames<-names(training_features)[-1]
   training_features[,featurenames] <- sapply( training_features[,featurenames], as.numeric )
+  
+  
+  # hack to cache, assume cacheStr is uniuqe? or md5(features, names, dims, )
+  myO = paste(localCache,"scoreMe","",sep="/");
+    if(!dir.exists(myO)) { dir.create(myO,recursive=T); }
+  training_dims = dim(training_features);
+    cacheString = "";
+    cacheString = paste(cacheString, tractor.base::implode(training_dims,sep="-"),sep="_");
+    cacheString = paste(cacheString, tractor.base::implode(recordidname,sep="-"),sep="_");
+    cacheString = paste(cacheString, tractor.base::implode(featurenames,sep="-"),sep="_");
+  cacheFile = paste(myO,cacheString,".Rda",sep="");
+  
+  if(file.exists(cacheFile))
+  {
+  load(cacheFile);
+  return(ensemble_model);
+  }
   
   print("Reading and merging covariates")
   #Read-in and merge covariates
@@ -78,7 +97,11 @@ PD_score_challenge1<-function(training_features){
     print("Fitting the model")
     #Fit model
     ensemble_model<-fit_model(mediantraining, featurenames, covs_num, covs_fac)
+    
+    save(ensemble_model,file=cacheFile);
   }
+  
+  
   
   return(ensemble_model)
 }
@@ -109,6 +132,48 @@ download_merge_covariate<-function(features){
   
   return(mergeddata)
 }
+
+
+
+#' Covariate data downloaded remotely from syntable
+#'
+#' Let's hack to cache this ... 
+
+#' @param features 
+#'
+#' @return mergeddata with covariates (age/gender) from demos$
+#' @export
+#'
+download_merge_covariateHACKED<-function(features){
+  
+  cacheFile = "downloadMergeCovariate.Rda";
+  
+  print(cacheFile);
+  if(!file.exists(cacheFile))
+  {
+      #download correct covariates
+      synid<-"syn10233116"
+      
+      syndemos<-synGet(synid)
+      demos<-read.csv(attributes(syndemos)$filePath, header=T, as.is=T)
+      
+      # Merge Data
+      mergeddata<-cbind(demos, features[match(demos$recordId.walktest, features[,1]), -1])
+      if(dim(features)[2]==2){
+        names(mergeddata)[dim(mergeddata)[2]]<-names(features)[2]
+      }
+  
+  save(mergeddata,file=cacheFile);
+  print(str(mergeddata));
+  } else { 
+        load(cacheFile);
+        print(str(mergeddata));
+        }
+  
+  
+  
+  return(mergeddata)
+} 
 
 
 #' Ensemble Training
