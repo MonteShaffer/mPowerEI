@@ -133,8 +133,13 @@ codeHealthState = function(dframe)
 #' @return list of results, roc.nest is the xfeats in order that matter
 #' @export 
 #' 
+#' 
 stepwiseFeatureSelection = function(dframe,xfeats,rnum,fastignore=TRUE,ignoreme=c(0,0),startfeats=NULL)
 {
+  
+  
+  
+  
   tstart = Sys.time();
   tpfeats = dampenOutliers(dframe,xfeats); # default iCut
   
@@ -147,11 +152,19 @@ stepwiseFeatureSelection = function(dframe,xfeats,rnum,fastignore=TRUE,ignoreme=
   
   roc.gold = 0.91734137545722882;
   roc.rndm = bench;
+  roc.previousloop = 0;
   roc.continue = TRUE;
   roc.current = roc.previous = 0;
   roc.nest = NULL;
   roc.list = xfeats;
-  roc.names = names(tpfeats)[roc.list];
+  roc.names = NULL;
+    i=0;
+    for(xfeat in xfeats)
+      {
+      i=i+1;
+      roc.names[xfeat] = names(tpfeats)[roc.list[i]]
+      }
+    
   roc.maxs = NULL;
   rocsInner = list();
   roc.ignore = NULL;
@@ -218,7 +231,19 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
     roc.index = paste("X",roc.loop,sep='');
     roc.remaining = setdiff(roc.list,roc.nest);
     
+    
+    
+    
+    
     # we don't have a roc.current/previous so the first inner loop will not truncate well
+    #stop();
+    tpfeat = tpfeats[,c(rnum,roc.nest)]; 
+    resultme = NULL;
+    resultme = PD_score_challenge1(tpfeat); # namespace conflict
+    
+    roc.current = roc.previous = roc.previousloop = resultme$error$ROC;
+    
+    
   }
   
   
@@ -247,7 +272,7 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
     for(i in 1:xlentemp)
     { 
       tstartInner = Sys.time();
-      xfeat = xfeattemp[i];
+      xfeat = xfeattemp[i]; if(is.na(xfeat)){ break; }
       xfeattemplist = c(roc.nest,xfeat);
       print(paste("######################",xfeat,"######################"));
 print(paste("######################",names(tpfeats)[xfeat],"######################"));
@@ -264,72 +289,78 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
       rocs[xfeat] = resultme$error$ROC;
       status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
       print(paste("######################",status,"######################"));
-      status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.previous);
+      status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.previousloop);
       print(paste("######################",status,"######################"));
       
       
       tendInner = Sys.time(); timerInner = tendInner - tstartInner; print(timerInner);
       timers[[roc.index]][[xfeat]] = list(timer = timerInner, units = attr(timerInner,"units") )
-    }
+    }  # end of for loop
     
     tendOuter = Sys.time(); timerOuter = tendOuter - tstartOuter; print(timerOuter);
     timers[[roc.index]]$outer = list(timer = timerOuter, units = attr(timerOuter,"units") )
     
     
+    #stop();
     
+    # names(rocs) = roc.names[roc.remaining];
     
-    names(rocs) = roc.names[roc.remaining];
+    if(!is.null(rocs))
+    {
     rocsInner[[roc.index]] = rocs;
     
     roc.sort = order(-rocs);  # NAs?	properly sort
     
     roc.current = as.numeric(rocs[roc.sort[1]]);
+    }  else { break; }
     
     
     
     
-    if(roc.previous > roc.current) 
-    { 
-      roc.continue = F;
-      print(roc.nest);
-      print(roc.names[roc.nest]);
-    } else {
-      
-      
-      # tfeat = # truncate features for only positive ROCS
-      # maybe do this at every stage ... this will make hierarchy run faster ... 
-
-      compareto = roc.current;
-      roc.diff = rocs - compareto;
-      
-      
-      
-      # 19                4               15               20 
-      
-      roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
-      roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
-      #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
-      
-      roc.ignore = unique(c(as.numeric(roc.nest),roc.ignore,as.numeric(which(roc.diff < ignoreme[2])))); # if zero, we may lose one e.g., #20 from pedometer # as we get deeper, let's make the cut more relevant ... interaction effects.
-      # was -0.05
-      
-      if(fastignore==T){
-        roc.remaining = setdiff(roc.list,roc.ignore);
-      }else{
-        roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
-      }
-      
-      
-      print(roc.remaining);
-      
-      # next loop
-      roc.loop = roc.loop + 1;	roc.index = paste("X",roc.loop,sep='');
-      roc.previous = roc.current;
-    } # end for loop
+    
+            if(roc.previous > roc.current) 
+            { 
+              roc.continue = F;
+              print(roc.nest);
+              print(roc.names[roc.nest]);
+            } else {
+              
+              
+              # tfeat = # truncate features for only positive ROCS
+              # maybe do this at every stage ... this will make hierarchy run faster ... 
+        
+              compareto = roc.current;
+              roc.diff = rocs - compareto;
+              
+              
+              
+              # 19                4               15               20 
+              
+              roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
+              roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
+              #roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+              
+              roc.ignore = unique(c(as.numeric(roc.nest),roc.ignore,as.numeric(which(roc.diff < ignoreme[2])))); # if zero, we may lose one e.g., #20 from pedometer # as we get deeper, let's make the cut more relevant ... interaction effects.
+              # was -0.05
+              
+              if(fastignore==T){
+                roc.remaining = setdiff(roc.list,roc.ignore);
+              }else{
+                roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+              }
+              
+              
+              print(roc.remaining);
+              
+              # next loop
+              roc.loop = roc.loop + 1;	roc.index = paste("X",roc.loop,sep='');
+              roc.previous = roc.current;
+            } # end continue
     
     
     
-    
+   # roc.previousloop = which(roc.maxs[tail(roc.maxs,n=1)]); 
+    roc.previousloop = tail(roc.maxs,n=1); 
     
     
     
@@ -353,13 +384,19 @@ print(paste("######################",names(tpfeats)[xfeat],"####################
   timerTotal = tend - tstart;  print(timerTotal);
     timers$total = list(timer = timerTotal, units = attr(timerTotal,"units") )
   
-  names(roc.nest) = roc.names[roc.nest];
+  
+  
+  names(roc.nest) = roc.names[as.numeric(roc.nest)];
   
   
   
   
   
   myList = list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
+  
+  
+  
+  
   
   
   myList;
