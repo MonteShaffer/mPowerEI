@@ -2,6 +2,12 @@
 title: "R Notebook: mPowerEI"
 output: html_notebook
 ---
+To install this package use devtools:
+```{r}
+library(devtools);
+install_github("MonteShaffer/mPowerEI", subdir="mPowerEI");
+```
+
 
 I begin with a config.txt file that is necessary for startup
 
@@ -252,11 +258,35 @@ fastignore=FALSE;
 ```
 
 
-Final features, merge MOTION and PEDOMETER.  ALL vs WINNERS.
+Final features, merge MOTION and PEDOMETER.  MOTION performs without PEDOMETER options.
 
 ```# let's merge mfeats3 and pfeats into a final set, of only good/bad
 uniqueP = unique( c( c(19,4,15,20),c(19,4,4,15,16) ) );
-uniqueM = 
+uniqueM = unique( c( c(151,97,121,99,96),c(151,97,121,99,18) ) );
+
+    rownames(pfeats) = pfeats$r;
+		rownames(mfeats3) = mfeats3$r;
+		
+mergefeats = merge(pfeats[,c(22,uniqueP)], mfeats3[,c(1,uniqueM)]);
+
+
+rnum = 1;
+xfeats = 2:12;
+
+fastignore=TRUE;		# fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = NULL;		# startfeats = c(7,8,9,10,12,11);  # reindexed
+
+featureselections.MERGED = stepwiseFeatureSelection(mergefeats,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.MERGED$nest;
+		featureselections.MERGED$maxs - featureselections.MERGED$rndm;
+		
+		names(mergefeats);
+
+	
+
 ``` 
 
 

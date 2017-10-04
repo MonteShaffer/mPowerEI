@@ -1,0 +1,2725 @@
+library(mPowerEI);
+
+setwd("P:/_.github._/mPowerEI")
+
+
+library(synapseCache);
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+	# MonteShaffer ... [!S9] ... 
+mPower = loadSynapseData();
+	setup = loadSetup();
+	audit = harvestAudit();  # 8.0414266149202991 mins
+
+trainme = codeHealthState(mPower$walking.training);
+	submitme = trainme[,c(1,15)];  # one variable $healthState
+	# submitme = trainme[,c(1,16)];  # one variable $isPD
+
+	
+	loadSubmitLibraries();
+	
+
+
+	
+	
+	# http://www.public.iastate.edu/~maitra/stat501/lectures/MultivariateRegression.pdf
+	
+	# gold standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.91734137545722882
+		
+		summary(resultme);
+		
+	
+	
+	# randomness (lower bound)
+	submitme$healthState = rnorm(dim(submitme)[1]);
+	
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 58.79636287689209 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.59498125092849774
+		
+		
+		
+		
+		# audit doesn't match? [records]
+		myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+	mytemplate = read.csv(myT, header=T);	
+		#records = as.character(factor(mytemplate$recordId)); 		method="string";
+		records = names(audit$rclist);							 	method="variable";
+		
+		missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+	
+	# pedometer features
+		pfeats = getPedometerFeatures(records);
+pfeats = appendRecordData(pfeats,missingrecords);  # 9.558846735954285 mins		
+				
+pfeats = imputateDataFrame(pfeats,1:20);  # 6.8484250505765276 mins [adds white noise]
+			
+			
+setwd("P:/_synapseCacheMonte/summaryObjects");			
+	save(pfeats,file="PedometerFeatures.Rda");
+	load(	"PedometerFeatures.Rda" );
+
+
+
+			
+				
+				ptemp = pfeats[,1:20];
+				summary(ptemp);
+				M = cor(ptemp);
+					corrplot::corrplot(M, method = "shade", type="lower", diag=F);
+					
+	names(pfeats);
+		myC = c(22,1:20);  # rv is not r ... 
+
+	submitme = pfeats[,myC];  
+			submitme$r = as.character(factor(submitme$r));
+				str(submitme);	
+
+
+tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 2.0027645508448284 mins
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.60537653726292673
+		summary(resultme);
+		
+		
+		
+				pca = prcomp(ptemp);  # scale=T
+		
+		pcapfeats = pfeats;
+		pcapfeats[,1:20] = pca$x;
+		
+		
+		names(pfeats);
+		myC = c(22,1:10);  # rv is not r ... 
+
+	submitme = pcapfeats[,myC];  
+			submitme$r = as.character(factor(submitme$r));
+				str(submitme);	
+				
+				
+			
+
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 1.5931411147117616 mins
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.62631769937684667
+					
+				
+		
+
+# do my own random forest?
+# y = f(x) ... y is medTime 
+	# https://www.r-bloggers.com/how-to-perform-a-logistic-regression-in-r/	
+				
+		#pfeats.play = pcapfeats[sample(nrow(pcapfeats)),];  # sample by row ... 
+		#pfeats.play = subset(pfeats.play, isPD == 0 | isPD == 1);
+		
+		pfeats.play = pfeats[sample(nrow(pfeats)),];  # sample by row ... 
+		pfeats.play = subset(pfeats.play, isPD == 0 | isPD == 1);
+		
+		
+			# https://stackoverflow.com/questions/13610074/is-there-a-rule-of-thumb-for-how-to-divide-a-dataset-into-training-and-validatio
+			
+			playN = dim(pfeats.play)[1];
+			playS = floor(.8 * playN);
+				
+				
+			
+
+
+		aucs = numeric();
+
+		for(i in 1:20)
+			{
+			print(i); flush.console();
+				#myC = c(28,1:20,26,27);  
+				#myC = c(28,1,26,27);  
+			myC = c(28,1:i,26,27); 	
+			
+			
+			train = pfeats.play[1:playS,myC];
+		test  = pfeats.play[(1+playS):playN,myC];
+		
+				
+				model <- glm(isPD ~.,family=binomial(link='logit'),data=train);
+				# model <- glmnet(isPD ~.,family=binomial(link='logit'),data=train);
+				
+				summary(model);
+				anova(model, test="Chisq")
+				
+				fitted.results <- predict(model,test,type='response')
+				
+				library(ROCR)
+					p <- predict(model, test, type="response")
+					pr <- prediction(p, test$isPD)
+					
+					prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+					#plot(prf)
+
+					auc <- performance(pr, measure = "auc")
+					auc <- auc@y.values[[1]]
+					auc
+				aucs[i] = auc;
+				}
+
+			print(aucs);  # all data performs best
+			
+			
+			
+			
+			
+			
+			
+			myC = c(28,1:20,26,27); 
+					train = pfeats.play[1:playS,myC];
+					test  = pfeats.play[(1+playS):playN,myC];
+			
+			pfeats.play.rf = randomForest(as.factor(isPD) ~.,data=train, importance=TRUE,
+                        proximity=TRUE);
+						
+						
+				# https://www.r-bloggers.com/binary-classification-a-comparison-of-titanic-proportions-between-logistic-regression-random-forests-and-conditional-trees/
+				
+	# library(glmnet)			
+				
+				
+				
+				# https://stackoverflow.com/questions/34390502/create-a-binary-outcome-with-random-forest
+				
+				
+				# https://www.rdocumentation.org/packages/caret/versions/6.0-77/topics/rfe
+				
+				
+	rv="RECORD26572a14ad4e4dc1b0d1490a348ddacf";			
+				
+				
+				
+				
+			# http://scottsfarley.com/research/cloudcomputing/2016/07/19/Updating-R-on-Debian.html	
+			# apt-get remove r-base
+			
+# apt-cache rdepends r-base-core				
+
+			# https://cran.r-project.org/doc/manuals/r-release/R-admin.html#Installing-R-under-Unix_002dalikes
+
+		# https://cran.r-project.org/
+		
+		apt-get update
+		apt-get install r-base r-base-dev
+		apt-get install libatlas3-base libopenblas-base
+		apt-get -y build-dep libcurl4-gnutls-dev
+		apt-get -y install libcurl4-gnutls-dev
+		
+		
+# pico /etc/apt/sources.list	
+# deb https://cloud.r-project.org/bin/linux/debian jessie-cran34/		
+		
+		# gpg --keyserver keyserver.ubuntu.com --recv-key FCAE2A0E115C3D8A
+		# gpg -a --export FCAE2A0E115C3D8A | sudo apt-key add -
+		
+		
+					
+				pca = prcomp(ptemp);
+					
+					
+		names(pfeats);
+		myC = c(22,1:20);  # rv is not r ... 
+		
+		submitme = pfeats[,myC];  
+			submitme$r = as.character(factor(submitme$r));
+				str(submitme);
+					
+
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 58.79636287689209 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.59498125092849774
+	
+
+	
+
+
+			
+					
+					
+					
+			
+			
+		#myC = c(24,23,1:20);
+		myC = c(21,1:20);  # rv is not r ... 
+		psubmit = pfeats[,myC];  str(psubmit);
+		
+		
+		submitme = psubmit;
+		
+		
+		tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 58.79636287689209 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.59498125092849774
+	
+	
+	
+		
+		
+			
+			
+			
+			#myC = c(25,26,24,23,1:20);
+			#myC = c(25,24,23,1:20);
+			myC = c(24,23,1:20);
+
+			
+			ptemp = ptemp[,myC];
+			#ptemp = ptemp[!is.na(ptemp$isPD),];				
+				summary(ptemp);
+				M = cor(ptemp);
+				corrplot::corrplot(M, method = "shade", type="lower", diag=F);
+		
+	submitme = ptemp[,-c(1,2)];  str(submitme);
+	
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 58.79636287689209 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.59498125092849774
+	
+	
+	
+	
+	
+	
+	
+	iqrDSPS iqrDD iqrDS iqrDDPS iqrDPS iqrSPS
+	
+	
+                                                medianDDPS          medianDSPS           medianDD medianDS
+RECORD568cd619729a43008d9b47fd7fb08f8c 0.23610065588282475 0.35294117647058826 4.0137111500080209        6
+                                                 medianDPS           medianSPS iqrDDPS iqrDSPS iqrDD iqrDS
+RECORD568cd619729a43008d9b47fd7fb08f8c 0.23610065588282475 0.35294117647058826       0       0     0     0
+                                       iqrDPS iqrSPS mindeviationDPS maxdeviationDPS mindeviationDDPS
+RECORD568cd619729a43008d9b47fd7fb08f8c      0      0               0               0                0
+                                       maxdeviationDDPS mindeviationSPS maxdeviationSPS mindeviationDSPS
+RECORD568cd619729a43008d9b47fd7fb08f8c                0               0               0                0
+                                       maxdeviationDSPS
+RECORD568cd619729a43008d9b47fd7fb08f8c                0
+> hv
+
+
+	
+	
+	# HEALTH00fc0b43f12348299b779aaeee8fea41
+	# RECORD840bb5d3028c41e48d4e601445a1d10f  ... badjson ... 
+			
+			
+			
+			pfeats = imputateDataFrame(pfeats);	
+		
+	
+	
+	
+
+"P:/_synapseCacheMonte/userObjects/HEALTH0007f766614245be84ddcdb9639fce21/RECORD2c767faef25d4cb2a788c2a8b1e0021f"
+
+rv = 'RECORD2c767faef25d4cb2a788c2a8b1e0021f';
+
+rv='RECORD64a4ad3362c945e6baea6d705e6dffe4';
+
+rv='RECORDc9ac2e8556d74e23ac4b725532f7dec7';
+	rvObj = getMotionObject(rv);
+	
+	pfeat = getPedometerFeaturesFromRecord(rvObj);
+	
+	
+	
+		str(rvObj);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(mPowerEI);
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+mPower = loadSynapseData();
+	setup = loadSetup();
+
+	
+	
+	harvestJSON(mPower$walking.training,     'syn10146553');
+	
+	
+	
+	
+	
+# library("mPowerEI", lib.loc="P:/_.github._/mPowerEI")	
+	
+	
+	
+	
+	
+	
+	
+library(devtools);	
+install_github("MonteShaffer/mPowerEI", subdir="mPowerEI");
+library(mPowerEI);	
+loadSynapse("P:\\_.github._\\mPowerEI\\mPowerEI\\example\\config.txt",login=T,synapsePassOverride='!Alexander9857');
+
+
+# http://kbroman.org/pkg_primer/pages/github.html
+
+
+
+
+
+
+library(mPowerEI);
+
+
+	# setwd("P:/_.github._/mPowerEI")
+	loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+
+mPower = loadSynapseData();	# loads summary info of data tables
+	
+	setup = loadSetup();  	# builds constants
+	
+	
+		# harvest json-motion data
+			# harvestJSON(mPower$walking.training,     'syn10146553');	
+			# harvestJSON(mPower$walking.testing,      'syn10733842');
+			# harvestJSON(mPower$walking.supplemental, 'syn10733835');
+
+
+			
+	audit = harvestAudit(); # builds/caches list objects of health/record 
+							# good/bad counts [complete data or not]
+							
+							
+parseAllRecordData();		
+
+
+
+
+trainme = mPower$walking.training;
+	trainme$healthState = NA; 
+		trainme$healthState[mPower$walking.training$medTimepoint=="Immediately before Parkinson medication"] = 0;
+		
+		trainme$healthState[mPower$walking.training$medTimepoint=="Another time"] = 1;
+		
+		
+		trainme$healthState[mPower$walking.training$medTimepoint=="Just after Parkinson medication (at your best)"] = 2;
+		
+		trainme$healthState[mPower$walking.training$medTimepoint==""] = 3;
+		trainme$healthState[is.na(mPower$walking.training$medTimepoint)] = 3;
+		
+		trainme$healthState[mPower$walking.training$medTimepoint=="I don't take Parkinson medications"] = 5;
+		
+		
+	trainme$isPD = NA; 
+		trainme$isPD[mPower$walking.training$medTimepoint=="Immediately before Parkinson medication"] = 1;
+		
+		trainme$isPD[mPower$walking.training$medTimepoint=="Another time"] = 1;
+		
+		
+		trainme$isPD[mPower$walking.training$medTimepoint=="Just after Parkinson medication (at your best)"] = 1;
+		
+		trainme$isPD[mPower$walking.training$medTimepoint==""] = 0.5;
+		trainme$isPD[is.na(mPower$walking.training$medTimepoint)] = 0.5;
+		
+		trainme$isPD[mPower$walking.training$medTimepoint=="I don't take Parkinson medications"] = 0;
+		
+		
+			submitme = trainme[,c(1,16)];
+			resultme = PD_score_challenge1(submitme);
+				str(resultme$error);
+				
+
+# perfect prediction ...
+
+nObs = dim(trainme)[1];
+	
+
+submitme = trainme[,c(1,15)];
+
+
+# https://psb.stanford.edu/psb-online/proceedings/psb16/bellon.pdf
+
+	# TRUTH
+	$ error    :'data.frame':	1 obs. of  7 variables:
+  ..$ parameter: Factor w/ 1 level "none": 1
+  ..$ ROC      : num 0.917
+  ..$ Sens     : num 0.988
+  ..$ Spec     : num 0.826
+  ..$ ROCSD    : num 0.005
+  ..$ SensSD   : num 0.00386
+  ..$ SpecSD   : num 0.00726
+ - attr(*, "class")= chr [1:2] "caretEnsemble" "caretStack"
+
+
+		submitme$rN1 = rN1 = rnorm(nObs);
+	submitme$rN2 = rN2 = rnorm(nObs);
+	submitme$rN2 = rN3 = rnorm(nObs);
+	
+	
+	submitme$healthState = rnorm(nObs);
+	
+resultme = PD_score_challenge1(submitme);
+
+> str(resultme$error)
+'data.frame':	1 obs. of  7 variables:
+ $ parameter: Factor w/ 1 level "none": 1
+ $ ROC      : num 0.912
+ $ Sens     : num 1
+ $ Spec     : num 0.822
+ $ ROCSD    : num 0.00244
+ $ SensSD   : num 0.000738
+ $ SpecSD   : num 0.00385
+
+ 
+ resultme = PD_score_challenge1(submitme);
+ submitme = trainme[,c(1)];
+ 
+ 
+
+submitme = trainme[,c(1)];
+
+ nObs = dim(trainme)[1];
+ 
+ 
+	submitme$rN1 = rN1 = rnorm(nObs);
+	
+	
+	
+	submitme$rN2 = rN2 = rnorm(nObs);
+	submitme$rN2 = rN3 = rnorm(nObs);
+	
+	
+	# random noise
+	
+	# demos ... 6043 observations ... 
+ 
+ resultme = PD_score_challenge1(submitme);
+ 
+ str(resultme$error)
+ 
+
+
+# External Call:
+# PD_score_challenge1(training_features)
+# where training_features is a data frame with the training matrix
+# MUST CONTAIN recordId IN 1st COLUMN
+
+install.packages(c("caret","caretEnsemble","pROC","glmnet","e1071","randomForest","kernlab","nnet","data.table"),dependencies=T);
+
+
+library(synapseClient)
+library(caret)
+library(caretEnsemble)
+library(pROC)
+library(glmnet)
+library(e1071)
+library(randomForest)
+library(kernlab)
+library(nnet)
+library(data.table)
+
+
+install.packages(c("RCurl","rjson","digest","RUnit"),dependencies=T);
+
+
+source('http://depot.sagebase.org/CRAN.R')
+pkgInstall("synapseClient")
+
+
+
+
+synapseLogin()
+
+
+
+
+
+
+PD_score_challenge1<-function(training_features){
+  #manipulate incoming data into dataframe
+  training_features<-as.data.frame(training_features)
+  recordidname<-names(training_features)[1]
+  featurenames<-names(training_features)[-1]
+  training_features[,featurenames] <- sapply( training_features[,featurenames], as.numeric )
+
+  print("Reading and merging covariates")
+  #Read-in and merge covariates
+  training_features<-download_merge_covariate(training_features)
+
+  print("Summarizing the data")
+  #Summarize by Median
+  covs_num<-c("age")
+  covs_fac<-c("gender")
+  groupvariables<-c("healthCode", "medTimepoint", "professional.diagnosis", covs_num, covs_fac) #"age", "gender") #, "appVersion.walktest", "phoneInfo.walktest")
+
+
+
+
+
+
+
+
+
+
+
+
+
+install.packages("devtools")
+library(devtools)
+install_github("MonteShaffer/mPowerEI",subdir="mPowerEI")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+					
+				
+	parsed = parseAudit(); 	# updates good/bad with details regarding actual data
+							# badJSON are ignored.
+							
+		
+
+
+
+
+
+		
+	recs = recordMap(mPower);  	# takes 6 seconds to load if cached... 
+								# takes 1.5 hours if not cached ...
+		# organizes data based on rv - very large file [~540 MB]						
+							# 256 at walking.training ...
+							
+							
+	complete = getCompleteRecords("walking.training");
+
+	
+	
+	
+	
+							
+	rv='RECORD85d9458a9dab43769ec65e1df81dddd6';
+	
+	rv='RECORDff4a60fe066e40649592a54a4b44085e';
+	
+	rvinfo = parseSingleRecordVariable(rv);						
+							
+							
+			
+
+	rv='RECORDff92688a286a4b0d87ab041b0108fe74';  # bad json
+	rvinfo = parseSingleRecordVariable(rv,force=T);	
+			
+							
+							
+	rvinfo = parseSingleRecordVariable(rv);		
+	
+	
+	rvfeatures = extractFeatures(rv); # internally calls parseSingleRecordVariable(rv);	
+							
+							
+							
+	
+	
+	parseData();	# all, h, r 
+	
+	
+	
+	rv="RECORD28832018b9c849e79d67f201d99eb8b6";
+	
+	
+	P:/_synapseCacheMonte/userObjects/HEALTH04ae055bf8cd4955a7e35b57df9358cf/RECORD28832018b9c849e79d67f201d99eb8b6"
+> 
+
+	
+	
+	harvestSingle('b80b54cc-7323-4a1e-88cf-112051223fc5','syn10733842');
+	
+		records = sample(unique(data$recordId))
+		r = records[3];
+		json = "accel_walking_outbound.json.items";
+	
+	
+	SELECT * FROM syn10146553 where healthCode='b80b54cc-7323-4a1e-88cf-112051223fc5'
+0	
+	
+	SELECT * FROM syn10733835 where healthCode='b80b54cc-7323-4a1e-88cf-112051223fc5'
+0
+	
+	SELECT * FROM syn10733842 where healthCode='b80b54cc-7323-4a1e-88cf-112051223fc5'
+1317	
+	
+	
+ h='379fd3c9-7dc7-4752-b180-cc0ae8b168b4';	
+harvestSingle(h);
+
+	md5(h);
+	recordVariableToString('RECORD64a4ad3362c945e6baea6d705e6dffe4');
+	
+	
+	recordVariableToString('HEALTHb9bb799d996b48909c5fd9238f8683c3',prepend="HEALTH");
+
+
+	h="b9bb799d-996b-4890-9c5f-d9238f8683c3"
+	harvestSingle(h);
+	
+	
+	 harvestJSON(mPower$walking.training,     'syn10146553');
+#' harvestJSON(mPower$walking.testing,      'syn10733842');
+#' harvestJSON(mPower$walking.supplemental, 'syn10733835');
+#' harvestJSON(mPower$walking.training,     'syn10733842',random=F,verbose=F);
+#' 
+
+
+if(length(data[[json]]) == 1 ) 
+	{ 
+	if(is.na(data[[json]])) 
+		{ 
+		print("alexnext;");  
+		}
+	}
+
+
+
+	# mPower[["demographics"]]
+	# mPower$demographics
+
+
+
+
+#h='7457113a-34bd-4324-935c-f66bd33f1e4b';
+#r='c9ac2e85-56d7-4e23-ac4b-725532f7dec7';
+#designpoint=100;
+#pareto=0.8;
+
+
+
+rm(list = ls());
+ls();
+
+
+## featureselections = list(gold=roc.gold,rndm=roc.rndm,current=roc.current,previous=roc.previous,nest=roc.nest,list=roc.list,names=roc.names,maxs=roc.maxs,deltas=c(roc.maxs[1],diff(roc.maxs)),details=rocsInner,timers=timers);
+
+# (featureselections$maxs - featureselections$rndm)/featureselections$rndm
+# [1] 0.03866131917498698278290 0.08007525684520327979854
+# [3] 0.08859519942852613072493 0.08985666017860122201100
+
+
+# http://amsantac.co/blog/en/2016/09/20/balanced-image-classification-r.html # imbalanced classifier throws warning 'note: only  unique complexity parameters in default grid. Truncating the grid to'		
+
+
+##############################################################
+##############################################################
+# on server # 
+# mount /dev/sdc1 /media/green  # 
+# rsync -rv --progress /media/green/synapse* /data/R_data/rsync
+# rsync -rv --progress /media/green/MJFF-kaggle/* /data/R_data/rsync/MJFF-kaggle
+# root@aam:/data/R_data/rsync# unzip synapseCache.zip -d ./synapseCache/
+# root@aam:/data/R_data/rsync# unzip synapseCacheMonte.zip -d ./synapseCacheMonte/
+
+# rsync -rv --progress /data/R_data/rsync/synapseCache/.synapseCache/* /data/R_data/_synapseCache
+# rsync -rv --progress /data/R_data/rsync/synapseCacheMonte/_synapseCacheMonte/*Objects /data/R_data/_synapseCacheMonte
+
+# library(devtools);	
+# install_github("MonteShaffer/mPowerEI", subdir="mPowerEI");
+
+
+library(doMC);
+registerDoMC(cores = 16);
+
+setwd("/data/R_data");
+
+library(synapseClient); 	# ls("package:synapseClient");
+library(mPowerEI);  		# ls("package:mPowerEI");			
+	loadSynapse('config.txt',login=T,synapsePassOverride='!Alexander9857');
+
+	## source("Rerror.txt");  # the functions are not updating for some reason ...
+	source("Rerror.txt");
+		loadSubmitLibraries();
+
+
+
+
+mPower = loadSynapseData();
+	setup = loadSetup();
+	audit = harvestAudit();  # 8.0414266149202991 mins
+
+
+
+load(	"PedometerFeatures.Rda" );	# pfeats
+
+
+############################################################	
+
+# test gold
+
+
+## gold standard
+
+trainme = codeHealthState(mPower$walking.training);
+submitme = trainme[,c(1,16)];  # one variable $isPD
+	loadSubmitLibraries();
+# gold standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 27.07005572319030761719 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.91734137545722882
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+		
+		
+submitme = subset(submitme, isPD==1 | isPD==0);
+table(submitme$isPD);
+resultme = PD_score_challenge1(submitme);
+print(resultme$error$ROC);
+		
+############################################################		
+		
+	# load(	"PedometerFeatures.Rda" );	
+		
+
+
+
+
+								xfeats = 1:20;
+								rnum = 22; # which column has $r 
+							featureselections = stepwiseFeatureSelection(pfeats,xfeats,rnum); # dampenOutliers happens ...
+
+							# registerDoMC(cores = 16);
+								# 16 cores took 42.23356631994247578632 mins
+								
+							print(featureselections$timers$total); # Time difference of 42.23356631994247578632 mins
+
+							print(featureselections$nest); # mindeviationDSPS         medianDS mindeviationDDPS maxdeviationDSPS                19                4               15               20 
+							print(featureselections$maxs);  # [1] 0.6305339134064490425047 0.6556748247956531994163 0.6608469753705180638192 [4] 0.6616127628015791017901
+
+							print(featureselections$deltas); # [1] 0.6305339134064490425046756 0.0251409113892041569116031 [3] 0.0051721505748648644029686 0.0007657874310610379708919
+
+							print(featureselections$maxs - featureselections$rndm);
+							print( (featureselections$maxs - featureselections$rndm) / featureselections$rndm);
+							
+							
+							# registerDoMC(cores = 22);
+								# 22 cores took xxx
+								
+							print(featureselections$timers$total); # Time difference of 43.07650894323985113488 mins
+
+							print(featureselections$nest); # mindeviationDSPS         medianDS mindeviationDDPS maxdeviationDSPS                19                4               15               20 
+							print(featureselections$maxs);  # [1] 0.6305339134064490425047 0.6556748247956531994163 0.6608469753705180638192 [4] 0.6616127628015791017901
+
+							print(featureselections$deltas); # [1] 0.6305339134064490425046756 0.0251409113892041569116031 [3] 0.0051721505748648644029686 0.0007657874310610379708919
+
+							print(featureselections$maxs - featureselections$rndm); # [1] 0.02346989574640490072710 0.04861080713560905763870 [3] 0.05378295771047392204167 0.05454874514153496001256
+
+							print( (featureselections$maxs - featureselections$rndm) / featureselections$rndm); # [1] 0.03866131917498698278290 0.08007525684520327979854 [3] 0.08859519942852613072493 0.08985666017860122201100
+							
+								
+							
+
+							save(featureselections,file="PedometerFeaturesSelection.Rda");
+							
+							
+load(	"PedometerFeaturesSelection.Rda" );	# featureselections
+
+
+
+
+
+##############################################################
+# dampen outliers ... by column
+xfeats = 1:20;
+
+xfeats = c(3,6); 
+
+submitme = dampenOutliers(pfeats,xfeats);
+
+	pmed = plyr::colwise(median)(pfeats[,xfeats]); pmed;
+	pmin = plyr::colwise(min)(pfeats[,xfeats]); pmin;
+	pmax = plyr::colwise(max)(pfeats[,xfeats]); pmax;
+	
+	smed = plyr::colwise(median)(submitme[,xfeats]); smed;
+	smin = plyr::colwise(min)(submitme[,xfeats]); smin;
+	smax = plyr::colwise(max)(submitme[,xfeats]); smax;
+	
+	pmed - smed; # unchanged..
+
+
+##############################################################
+	dv="healthState"; dvv = c(0,5); dvf=c("PD.off","nonPD"); xfeats=1:20; split=80; dreplace="none";
+	
+	
+
+resultme = mPower_test(submitme,xfeats=xfeats);
+
+
+
+## on 16 cores, server ... 
+
+trainme = codeHealthState(mPower$walking.training);
+submitme = trainme[,c(1,16)];  # one variable $isPD
+	loadSubmitLibraries();
+# gold standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 27.07005572319030761719 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.91734137545722882
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+		
+		
+nobs = 275 + 178
+tobs = 275;
+tobs / nobs;		
+		
+submitme$isPD = rnorm(dim(submitme)[1]);		
+# random standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 38.26694440841674804688 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.5927967536774328971561
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+		
+
+
+# pedometer
+
+# raw
+xfeats = 1:20;
+tpfeats = pfeats;
+
+submitme = tpfeats[,c(22,1:20)]; 
+
+tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 37.40567374229431152344 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6089846723972813791192
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+				# 0.0161879187198484819632
+		
+		
+		
+# dampen outliers		
+xfeats = 1:20;
+tpfeats = dampenOutliers(pfeats,xfeats);
+
+submitme = tpfeats[,c(22,1:20)]; 
+
+tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6102
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+				# 0.0173884474068494165877
+		
+
+# one at a time, dampenOutliers
+
+rocs = NULL;
+for(xfeat in 1:20)
+	{
+	tpfeat = tpfeats[,c(22,xfeat)]; 
+	
+	print(rep(xfeat,99));
+		tstart = Sys.time();		
+	resultme = PD_score_challenge1(tpfeat);
+		tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6102
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+				# 0.0173884474068494165877
+		rocs[xfeat] = resultme$error$ROC - 0.5927967536774328971561;
+	
+	
+	}
+
+rocs;
+
+
+# add one at a time, dampenOutliers
+rocsA = NULL;
+for(xfeat in 1:20)
+	{
+	tpfeat = tpfeats[,c(22,1:xfeat)]; 
+	
+	print(rep(xfeat,99));
+		tstart = Sys.time();		
+	resultme = PD_score_challenge1(tpfeat);
+		tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6102
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+				# 0.0173884474068494165877
+		rocsA[xfeat] = resultme$error$ROC - 0.5927967536774328971561;
+	
+	
+	}
+
+rocsA;
+
+
+
+
+
+# only positive values (single roc) > 0.25, one at a time ...
+
+
+# add one at a time, dampenOutliers
+rocsAP = NULL;
+#for(xfeat in 1:20)
+	xfeattemp = c(2,4,15,16,19);
+	names(tpfeats)[xfeattemp]
+
+	xlentemp = length(xfeattemp);
+	xfeattemplist = c();
+for(i in 1:xlentemp)
+	{
+		xfeat = xfeattemp[i];
+	xfeattemplist = c(xfeattemplist,xfeat); 
+	
+	tpfeat = tpfeats[,c(22,xfeattemplist)]; 
+	
+	print(rep(xfeat,99));
+	print(xfeattemplist);
+		tstart = Sys.time();		
+	resultme = PD_score_challenge1(tpfeat);
+		tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6102
+		
+		summary(resultme);
+		
+		print(resultme$error$ROC - 0.91734137545722882);  		# gold standard
+		print(resultme$error$ROC - 0.5927967536774328971561);	# randomness
+				# 0.0173884474068494165877
+		rocsAP[xfeat] = resultme$error$ROC - 0.5927967536774328971561;
+	
+	
+	}
+
+rocsAP;
+
+
+##############################################################################
+##############################################################################
+##############################################################################
+##############################################################################
+nobs = 275 + 178
+tobs = 275;
+bench = tobs / nobs;
+
+xfeats = 1:20;
+tpfeats = dampenOutliers(pfeats,xfeats);
+
+## nested loop with stop
+
+roc.gold = 0.91734137545722882;
+roc.rndm = bench;
+roc.continue = TRUE;
+roc.current = roc.previous = 0;
+roc.nest = NULL;
+roc.list = 1:20;
+roc.names = names(tpfeats)[roc.list];
+roc.maxs = NULL;
+
+
+
+
+rocs = NULL;
+rocsInner = list();
+
+roc.loop = 1;
+for(xfeat in roc.list)
+	{
+	print(paste("######################",xfeat,"######################"));
+	# outer loop sets baseline	
+	tpfeat = tpfeats[,c(22,xfeat)]; 
+		resultme = NULL;
+		resultme = PD_score_challenge1(tpfeat);
+	rocs[xfeat] = resultme$error$ROC;
+		status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
+	print(paste("######################",status,"######################"));
+	}
+rocs;
+	# determine roc.nest first value;
+	names(rocs) = roc.names;
+	
+	
+	
+	
+	
+
+##############   first pass    ##################	
+	roc.index = paste("X",roc.loop,sep='');
+	rocsInner[[roc.index]] = rocs;
+	
+		roc.sort = order(-rocs);	
+	roc.nest = c(roc.nest,roc.sort[1]);	
+	roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
+	roc.current = roc.previous = as.numeric(rocs[roc.sort[1]]);	# max is first element
+	roc.remaining = setdiff(roc.list,as.numeric(roc.nest));
+	
+	# next loop
+	roc.loop = roc.loop + 1;	
+
+	
+	
+while(roc.continue==T)
+	{
+	print(paste("######################",roc.loop,"######################"));
+	rocs = NULL;
+	xfeattemp = roc.remaining;
+	xlentemp = length(xfeattemp);
+	for(i in 1:xlentemp)
+		{
+		xfeat = xfeattemp[i];
+		print(paste("######################",xfeat,"######################"));
+		print(paste(i," of ",xlentemp)); flush.console();  
+		print(paste("######################",xfeat,"######################"));
+		xfeattemplist = c(roc.nest,xfeat); 
+		tpfeat = tpfeats[,c(22,xfeattemplist)];
+		
+		resultme = PD_score_challenge1(tpfeat);
+		
+		rocs[xfeat] = resultme$error$ROC;
+		status = paste(rocs[xfeat]," :: ", rocs[xfeat] - roc.rndm);
+		print(paste("######################",status,"######################"));
+		}
+		
+		
+		
+		
+		
+		
+	names(rocs) = roc.names[roc.remaining];
+	roc.index = paste("X",roc.loop,sep='');
+	rocsInner[[roc.index]] = rocs;
+	
+		roc.sort = order(-rocs);  # NAs?	
+	
+	roc.current = as.numeric(rocs[roc.sort[1]]);	
+	if(roc.previous > roc.current) 
+		{ 
+		roc.continue = F;
+		print(roc.nest);
+		print(roc.names[roc.nest]);
+		} else {
+				roc.maxs = c(roc.maxs, as.numeric(rocs[roc.sort[1]]) );
+				roc.nest = c(roc.nest,roc.sort[1]);	# this was max ... 
+				roc.remaining = setdiff(roc.list,as.numeric(roc.nest));	
+				# next loop
+				roc.loop = roc.loop + 1;	
+				roc.previous = roc.current;
+				}
+	
+	}
+	
+	
+	
+	names(roc.nest) = roc.names[roc.nest];
+	
+
+	
+	
+	
+	
+##############################################################
+##############################################################
+##############################################################
+##############################################################
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+trainme = codeHealthState(mPower$walking.training);
+	submitme = trainme[,c(1,15)];  # one variable $healthState
+# gold standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.91734137545722882
+
+
+		
+# audit doesn't match? [records]
+		myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+	mytemplate = read.csv(myT, header=T);	
+		#records = as.character(factor(mytemplate$recordId)); 		method="string";
+		records = names(audit$rclist);							 	method="variable";
+		
+		missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+		
+		
+		
+		
+pfeats = getPedometerFeatures(records);
+pfeats = appendRecordData(pfeats,missingrecords);  # 9.558846735954285 mins		
+				
+pfeats = imputateDataFrame(pfeats,1:20);  # 6.8484250505765276 mins [adds white noise]
+			
+# do we have duplicates
+# https://stats.stackexchange.com/questions/6759/removing-duplicated-rows-data-frame-in-r
+# sum(duplicated(submitme));  #should be 0
+
+			
+			
+		# save(pfeats,file="PedometerFeatures.Rda");
+		# load(	"PedometerFeatures.Rda" );
+				
+				ptemp = pfeats[,1:20];
+				summary(ptemp);
+				M = cor(ptemp);
+					corrplot::corrplot(M, method = "shade", type="lower", diag=F);
+					
+	names(pfeats);
+		myC = c(22,1:20);  # rv is not r ... 
+
+	submitme = pfeats[,myC];  
+			submitme$r = as.character(factor(submitme$r));
+				str(submitme);	
+
+
+tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 35.37342476844787597656 secs
+
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.6089846723972813791192
+		
+		
+				pca = prcomp(ptemp);  # scale=T
+		
+		pcapfeats = pfeats;
+		pcapfeats[,1:20] = pca$x;
+		
+		
+		names(pfeats);
+		myC = c(22,1:10);  # rv is not r ... 
+
+	submitme = pcapfeats[,myC];  
+			submitme$r = as.character(factor(submitme$r));
+				str(submitme);	
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+		
+		pfeats.play = pfeats[sample(nrow(pfeats)),];  # sample by row ... 
+		pfeats.play = subset(pfeats.play, isPD == 0 | isPD == 1);
+			playN = dim(pfeats.play)[1];
+			playS = floor(.8 * playN);
+								
+				
+		#myC = c(28,1:20,26,27); 
+		#myC = c(28,1:20); 
+		#myC = c(29,1:20,26,27); 
+		#myC = c(29,1:20); 
+					train = pfeats.play[1:playS,myC];
+					test  = pfeats.play[(1+playS):playN,myC];
+			
+			
+			
+			
+			
+			pfeats.play.rf = randomForest(healthState ~.,data=train, importance=TRUE,
+                        proximity=TRUE);
+						
+						
+						
+						
+			
+			
+			
+			pfeats.play.rf = randomForest(as.factor(isPD) ~.,data=train, importance=TRUE,
+                        proximity=TRUE);		
+				
+				
+				
+				
+##############################################################
+
+
+
+##############################################################				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+
+		aucs = numeric();
+
+		for(i in 1:20)
+			{
+			print(i); flush.console();
+				#myC = c(28,1:20,26,27);  
+				#myC = c(28,1,26,27);  
+			#myC = c(28,1:i,26,27); 
+				myC = c(29,1:i);
+			
+			
+			train = pfeats.play[1:playS,myC];
+		test  = pfeats.play[(1+playS):playN,myC];
+		
+				
+				model <- glm(healthState ~.,data=train);
+				# model <- glmnet(isPD ~.,family=binomial(link='logit'),data=train);
+				
+				summary(model);
+				anova(model, test="Chisq")
+				
+				fitted.results <- predict(model,test,type='response')
+				
+				library(ROCR)
+					p <- predict(model, test, type="response")
+					pr <- prediction(p, test$healthState)
+					
+					prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+					#plot(prf)
+
+					auc <- performance(pr, measure = "auc")
+					auc <- auc@y.values[[1]]
+					auc
+				aucs[i] = auc;
+				}
+
+			print(aucs);  # all data performs best
+
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+##############################################################
+# audit doesn't match? [records]
+		myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+	mytemplate = read.csv(myT, header=T);	
+		#records = as.character(factor(mytemplate$recordId)); 		method="string";
+		records = names(audit$rclist);							 	method="variable";
+		
+		missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+	
+	# motion features
+		mfeats = getMotionFeatures(records,"variable");
+mfeats = appendRecordData(mfeats,missingrecords);  # 9.558846735954285 mins		
+				
+mfeats = imputateDataFrame(mfeats,1:20);  # 6.8484250505765276 mins [adds white noise]
+			
+			
+setwd("P:/_synapseCacheMonte/summaryObjects");			
+	save(mfeats,file="MotionFeatures.Rda");
+	load(	"MotionFeatures.Rda" ); # mfeats
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	# compute new angles?
+	
+# xt is time
+  # yi is pos data from integral
+ # yn = adjustDriftLowess(xt,yi);	
+  # > plot(xt,yn,type="l")
+  # > plot(xt,yi,type="l")
+  
+  plot(xt,yn,type="l",ylim=c(ymin,ymax), xlim=c(xmin,xmax) )
+  
+  abline(h=ymin, col="gray");
+  abline(h=ymax, col="gray");
+  
+  abline(h=ymed + yiqr, col="blue");
+  abline(h=ymed - yiqr, col="blue");
+  
+  abline(v=xt[first], col="red");
+  abline(v=xt[last], col="red");
+  
+  par(new=T);
+  plot(xt_,yn_,type="l",col="yellow",ylim=c(ymin,ymax), xlim=c(xmin,xmax) )
+  plot(rframe,type="l",col="yellow",ylim=c(ymin,ymax), xlim=c(xmin,xmax) )
+  
+  plot(xt_,yn_,type="l",col="red" )
+  
+   plot(rframe,type="l",col="red" )
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   plot(outbound$timestamp,outbound$x,type="l")
+   plot(outbound$timestamp,outbound$y,type="l")
+   plot(outbound$timestamp,outbound$z,type="l")
+   
+   computeAngle(outbound[1,2:4],outbound[2,2:4]);
+   
+   
+   plot(returnwalk$timestamp,returnwalk$x,type="l")
+   plot(returnwalk$timestamp,returnwalk$y,type="l")
+   plot(returnwalk$timestamp,returnwalk$z,type="l")
+   
+   
+   plot(interval$t,im$dydx,type="l")
+   plot(interval$t,im2$dydx,type="l")
+   
+   max = get("max",mode="function"); # restore function
+   
+  
+  
+   xt_ = xt[first:last];
+  yn_ = yn[first:last];
+  
+ 
+  
+  
+  rframe = dframe[first:last,];
+    rframe$t = xt_;
+    rframe$acc = yn_;
+  
+  
+  rframe;
+  
+  
+  
+  # h="7457113a-34bd-4324-935c-f66bd33f1e4b"
+  # > r="c9ac2e85-56d7-4e23-ac4b-725532f7dec7"
+  # rv = recordStringToVariable(r);
+  # hv = recordStringToVariable(h,"HEALTH");
+  # rvObj = getMotionObject(rv);
+  # olist = rvObj$motion$olist
+  # act="outbound";
+  # d="x";
+  
+  
+  
+  for(d in setup$dims)
+    {
+    im = integrateMe(nlist$t,nlist[[d]]);       # velocity
+    xt =	nlist$t; 	
+    yi =	im$dydx;
+    nlist[paste("vel",d,sep='.')] = yi;
+    im2 = integrateMe(xt,yi);                   # position
+    xt =	nlist$t; 	
+    yi =	im2$dydx;
+    nlist[paste("pos",d,sep='.')] = yi;
+    }
+    
+    
+    
+    
+      im = integrateMe(interval$t,interval$acc);  # velocity
+        xt =	interval$t; 	
+        yi =	im$dydx;
+      im2 = integrateMe(xt,yi);                   # position
+        xt =	interval$t; 	
+        yi =	im2$dydx;
+      
+      
+      
+      
+      
+      
+      
+      
+    mi = determineMotionInterval(xt,yi);
+    
+    
+    orientedIntegration = doi$return;
+    listComputeMotionWindow[[d]]$orientedIntegration = doi$internal;
+    
+    #print(datapoints);
+    listComputeMotionWindow[[d]]$datacontinue = T;
+    if(datapoints < 10) { listComputeMotionWindow[[d]]$datacontinue = F; next; }			
+    xt =	orientedIntegration$pos$xt; 	
+    yi =	orientedIntegration$pos$integral;	
+    mi = determineMotionInterval(xt,yi);	#stop();
+    
+    listComputeMotionWindow[[d]]$mi = mi;
+    #mi;					
+    if(mi$tmin < fmi) { fmi = mi$tmin; }
+    if(mi$tmax > fma) { fma = mi$tmax; }
+  }				
+  list("internal"=listComputeMotionWindow, "return" = list("min"=fmi,"max"=fma));	
+  
+  
+  
+  
+  
+computeWalkingAngles = function (outbound,returnwalk)
+{
+  if(!is.null(outbound))
+  {
+   outbound$Angles = NA;
+    for(i in 1:dim(outbound)[1]-1)
+      {
+      outbound$Angles[i+1] = computeAngle(outbound[i,2:4],outbound[i+1,2:4],"degrees");
+      }
+   outbound$Angles[1] = 0;
+  }
+  
+  if(!is.null(returnwalk))
+  {
+    returnwalk$Angles = NA;
+    for(i in 1:dim(returnwalk)[1]-1)
+    {
+      returnwalk$Angles[i+1] = computeAngle(returnwalk[i,2:4],returnwalk[i+1,2:4],"degrees");
+    }
+    returnwalk$Angles[1] = 0;
+  }
+  
+  
+  
+  anglesO = anglesW = c();
+  
+  c=(0,0,0);
+  
+  
+    
+  for(i in 1:dim(outbound)[1])
+    {
+    
+    }
+    
+  computeAngle(outbound[1,2:4],outbound[2,2:4],"degrees");
+  
+  
+}
+
+
+
+
+
+
+doIntegration = function(myData)
+	{
+	# $t and $acc	
+	xt=(myData$t/1000); # in seconds
+	yt=convertUnits(myData$acc); # in m/s^2
+		int = integrateMe(xt,yt);	
+		int2 = integrateMe(xt,int$integral);
+				int.old = integrateMeOLDAGAIN(xt,yt);
+				int2.old = integrateMeOLDAGAIN(xt,int.old$integral);
+		
+	dframe = data.frame();
+		dframe = cbind(xt,yt,int$integral,int2$integral);
+	colnames(dframe) = c("time","acc","vel","pos");
+	
+	list("time"=xt,"acc"=yt,"vel"=int,"pos"=int2,"dframe"=as.data.frame(dframe),
+			"old"=list("int"=int.old,"int2"=int2.old));	
+	}
+
+
+allpos = NULL;
+
+oriented$x = as.data.frame(cbind(olist$outbound$timestamp / 1000,olist$outbound$x));
+	colnames(oriented$x) = c("t","acc");
+	oI$x = doIntegration(oriented$x);
+	
+allpos = c(allpos,oI$dframe$pos);
+
+oriented$y = as.data.frame(cbind(olist$outbound$timestamp / 1000,olist$outbound$y));
+	colnames(oriented$y) = c("t","acc");
+	oI$y = doIntegration(oriented$y);
+	
+allpos = c(allpos,oI$dframe$pos);
+
+oriented$z = as.data.frame(cbind(olist$outbound$timestamp / 1000,olist$outbound$z));
+	colnames(oriented$z) = c("t","acc");
+	oI$z = doIntegration(oriented$z);
+	
+allpos = c(allpos,oI$dframe$pos);
+
+
+mm = mean(allpos);
+ms = sd(allpos);
+			
+			allposnorm = ((allpos-mm)/ms);
+			
+			
+	plot(oI$dframe$time,(oI$x$dframe$pos - mm)/ms,type="l")		
+			
+	plot(oI$dframe$time,(oI$y$dframe$pos - mm)/ms,type="l")	
+	
+	plot(oI$dframe$time,(oI$z$dframe$pos - mm)/ms,type="l")	
+	
+	
+
+
+	colnames(oriented) = c("t","acc");
+			oI = doIntegration(oriented);
+			str(oI);
+			str(oI$dframe);
+			
+			mm = mean(oI$dframe$pos);
+			ms = sd(oI$dframe$pos);
+			pos = ((oI$dframe$pos - mm)/ms);
+			
+			plot(oI$dframe$time,pos,type="l")
+			
+			plot(oI$dframe$time, scale(oI$dframe$pos),type="l")
+			
+			# merge 3 dims, then scale to single dimension ... 
+	
+	plot(oI$dframe$time,oI$dframe$pos,type="l")
+		abline(h=mean(oI$dframe$pos), col="gray");  # mean center ??? ? or zero center ?
+		abline(h=median(oI$dframe$pos), col="blue")
+	plot(oI$dframe$time,oI$dframe$pos - mean(oI$dframe$pos),type="l")
+		abline(h=0);
+	
+plot(oI$time,oI$pos$integral,type="l"); # not level ... 
+	myL = lowess(oI$pos$integral);
+	par(new=T);
+	plot(oI$time,myL$y,type="l");
+	par(new=T);
+	plot(oI$time,myL$y-oI$pos$integral,type="l");
+	
+	
+
+
+> plot(oI$time[-1],oI$pos$integral,type="l")
+> plot(oI$time,oI$pos$dydx,type="l")
+> plot(oI$old$int2$xt,oI$old$int2$integral,type="l")
+
+# 0 0.000103 0.000108 0.000115 0.000117 ...
+# 0.000103 0.000108 0.000115 0.000117 0.000117 ...
+	
+
+smoothList$oriented = as.data.frame(cbind(olist[[whichKey]]$timestamp / 1000,olist[[whichKey]][[whichDim]]));
+			colnames(smoothList$oriented) = c("t","acc");
+	
+	
+		
+		smoothList$rawIntegration = doIntegration(smoothList$raw);		
+		smoothList$smoothedIntegration = doIntegration(smoothList$smoothed);		
+		smoothList$orientedIntegration = doIntegration(smoothList$oriented);
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		 diff(range(resting$timestamp))/1000;
+  
+  # turning points per second
+  # hz
+  # amplitude
+  dfxy = as.data.frame(cbind(outbound$timestamp,outbound$x)); 
+    colnames(dfxy) = c("xt","yi");
+  
+  plot(dfxy,type="l")
+    tp = pastecs::turnpoints(dfxy$yi);
+    
+    subMin = dfxy[tp$pits,];  dim(subMin);
+    subMax = dfxy[tp$peaks,];	dim(subMax);
+    
+    
+    overallTurningPoints = min(dim(subMin)[1], dim(subMax)[1]);
+    
+    
+    subExtremes = dim(subMin)[1] + dim(subMax)[1];	
+    subDomain = diff(range(subMin$xt)) / 1000; # seconds	
+    
+    overallHz = overallTurningPoints / subDomain;
+    
+    overallMin = min(subMin$yi); overallMin;
+    overallMax = max(subMax$yi); overallMax;
+    
+    overallAmplitude = overallMax - overallMin;
+    
+    diffMin = diff(subMin$xt); diffMin;
+      diffMinMad = getMAD(diffMin); str(diffMinMad);
+    diffMax = diff(subMax$xt); diffMax;
+      diffMaxMad = getMAD(diffMax); str(diffMaxMad);
+    
+    # compute amplitudes of each cycle (max-max) and (min-min)
+    
+    # merge subMin,subMax ... looking for global mins/maxs, not locals
+    
+    subMinE = getGlobalExtremesFromLocals(subMin,"min",3);
+    
+    par(new=T);
+    plot(subMin$xt[subMinE],subMin$yi[subMinE],main="",xlim=c(min(dfxy$xt),max(dfxy$xt)),ylim=c(min(dfxy$yi),max(dfxy$yi)),xlab="",ylab="",col="red", xaxt='n',  yaxt='n',pch="4");
+    
+    
+    subMaxE = getGlobalExtremesFromLocals(subMax,"max",3);
+    
+    par(new=T);
+    plot(subMax$xt[subMaxE],subMax$yi[subMaxE],main="",xlim=c(min(dfxy$xt),max(dfxy$xt)),ylim=c(min(dfxy$yi),max(dfxy$yi)),xlab="",ylab="",col="green", xaxt='n',  yaxt='n',pch="4");
+    
+    
+    ## amplitudes, general cycles, deviations of cycles ... 
+    
+    # x,y,z ... I don't know which direction is which, maybe I sort on one cycle dim
+    # and make 1,2,3 ... regardless of dimension sort on Hz
+    
+    
+    par(new=T);
+    plot(subMin$xt[c(2,5,8,11,14)],subMin$yi[c(2,5,8,11,14)],main="",xlim=c(min(dfxy$xt),max(dfxy$xt)),ylim=c(min(dfxy$yi),max(dfxy$yi)),xlab="",ylab="",col="red", xaxt='n',  yaxt='n',pch="4");
+    
+    
+  
+    par(new=T);
+      plot(subMin$xt,subMin$yi,main="",xlim=c(min(dfxy$xt),max(dfxy$xt)),ylim=c(min(dfxy$yi),max(dfxy$yi)),xlab="",ylab="",col="red", xaxt='n',  yaxt='n');
+    par(new=T);
+      plot(subMax$xt,subMax$yi,main="",xlim=c(min(dfxy$xt),max(dfxy$xt)),ylim=c(min(dfxy$yi),max(dfxy$yi)),ylab="",col="green", xaxt='n',  yaxt='n');
+  
+  # rvObj = getMotionObject(rv);
+  plist = pinfo = list();
+  
+    print(names(rvObj)); flush.console();
+  stop("todo: getmotionfeatures");
+  
+  
+  
+    
+  for(act in setup$acts)
+  {
+    pinfo[[act]] = rvObj$raw$tlist[[act]]$pedometer;
+    plen = length(pinfo[[act]]);
+    if(plen > 2)
+    {
+      # let's not record if less than 2 data points, I don't care if rest [unlikely] or outbound/return ... I will merge into a final list ...
+      
+      # plist = rbind(plist,pinfo[[act]][,5:16]);
+      plist = rbind(plist,pinfo[[act]][,5:13]);
+    }
+    
+  }
+  
+  
+  plen = dim(plist)[1];
+  
+  
+  medianDDPS = medianDSPS = medianDD = medianDS = medianDPS = medianSPS = NA;
+  iqrDDPS = iqrDSPS = iqrDD = iqrDS = iqrDPS = iqrSPS = NA;  
+  
+  mindeviationDPS = maxdeviationDPS = mindeviationDDPS = maxdeviationDDPS = NA;
+  mindeviationSPS = maxdeviationSPS = mindeviationDSPS = maxdeviationDSPS = NA;
+  
+  if(!is.null(plen))
+  {
+    # medians ... biased based on height
+    med = plyr::colwise(median)(plist);
+    medianDDPS = med$deltaDistancePerSecond;
+    medianDSPS = med$deltaStepsPerSecond;
+    medianDD = med$deltaDistance;
+    medianDS = med$deltaSteps;
+    medianDPS = med$distancePerSecond;
+    medianSPS = med$stepsPerSecond;
+    
+    # IQR ... biased based on height
+    iqrDDPS = IQR(plist$deltaDistancePerSecond);
+    iqrDSPS = IQR(plist$deltaStepsPerSecond);
+    iqrDD = IQR(plist$deltaDistance);
+    iqrDS = IQR(plist$deltaSteps);
+    iqrDPS = IQR(plist$distancePerSecond);
+    iqrSPS = IQR(plist$stepsPerSecond);
+    
+    # normMin / normMax   ... standardize to min/max values ... independent of height
+    
+    cinfo = computeNormValue(plist$deltaDistancePerSecond);
+    mindeviationDDPS = cinfo$ddeviationmin;
+    maxdeviationDDPS = cinfo$ddeviationmax;
+    
+    cinfo = computeNormValue(plist$distancePerSecond);
+    mindeviationDPS = cinfo$ddeviationmin;
+    maxdeviationDPS = cinfo$ddeviationmax;
+    
+    cinfo = computeNormValue(plist$deltaStepsPerSecond);
+    mindeviationDSPS = cinfo$ddeviationmin;
+    maxdeviationDSPS = cinfo$ddeviationmax;
+    
+    cinfo = computeNormValue(plist$stepsPerSecond);
+    mindeviationSPS = cinfo$ddeviationmin;
+    maxdeviationSPS = cinfo$ddeviationmax;
+    
+    
+  }
+  
+  
+  list(medianDDPS=medianDDPS, medianDSPS= medianDSPS, medianDD= medianDD, medianDS= medianDS, medianDPS= medianDPS, medianSPS= medianSPS, iqrDDPS =iqrDDPS, iqrDSPS= iqrDSPS, iqrDD= iqrDD,iqrDS = iqrDS, iqrDPS= iqrDPS, iqrSPS= iqrSPS, mindeviationDPS = mindeviationDPS, maxdeviationDPS = maxdeviationDPS, mindeviationDDPS = mindeviationDDPS, maxdeviationDDPS = maxdeviationDDPS, mindeviationSPS =  mindeviationSPS, maxdeviationSPS = maxdeviationSPS, mindeviationDSPS = mindeviationDSPS, maxdeviationDSPS = maxdeviationDSPS);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  library(mPowerEI);
+
+setwd("P:/_.github._/mPowerEI")
+
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+	# MonteShaffer ... [!S9] ... 
+mPower = loadSynapseData();
+	setup = loadSetup();
+	audit = harvestAudit();  # 8.0414266149202991 mins
+	
+	
+  
+  records = names(audit$rclist);		#					 	method="variable";
+  
+  
+  
+  # outbound exists, but is null?
+  P:\_synapseCacheMonte\userObjects\HEALTH00831276dad148ae8fab5a3a9b156b94\RECORDf9fce870dd8a4ec29e30bd6cfd6abd5b
+  
+  
+  
+  
+  
+  res=getMotionFeaturesFromRecord(rv);  
+  
+  
+  ########
+  getMotionFeatures(records,"variables",finalize=T);
+  ########
+  
+  
+  
+  info = recordObj$motionWindow;
+  plotme=TRUE;
+  
+  
+  loo = loop[1]
+  
+  
+  ##########
+  
+	rv="RECORDf9fce870dd8a4ec29e30bd6cfd6abd5b";
+  res=getMotionFeaturesFromRecord(rv);
+  
+  
+  rv="RECORDc12e0b3de7e24fbf9296e036270a6b80";
+  rvObj = getMotionObject(rv);
+  
+  act="outbound"
+  d="y";
+  
+  
+   rvObj = getMotionObject(rv);
+   
+  olist = rvObj$motion$olist;
+  
+  
+  
+  
+  
+  rv="RECORDc12e0b3de7e24fbf9296e036270a6b80";
+  act=loo="outbound";
+  d="x";
+  
+  
+   rvObj = getMotionObject(rv);
+  
+  recordObj = list();
+  
+  recordFolder = paste( getRecordPath(rv), "motion-details", "",sep="/");
+    if(!dir.exists(recordFolder)) { dir.create(recordFolder,recursive=T); }
+  
+    rawF = paste(setup$designpoint,"motionDetails.Rda",sep="-");
+  recordFile = paste(recordFolder,rawF,sep="");
+  
+  if(file.exists(recordFile)) 
+  {
+  #load(recordFile);
+  #  return(recordObj);
+  }
+  
+  outbound = returnwalk = resting = NULL;
+    outbound = computeMotionWindow(rvObj$motion$olist,"outbound");
+    returnwalk = computeMotionWindow(rvObj$motion$olist,"return");
+    resting = computeMotionWindow(rvObj$motion$olist,"rest");
+    
+  recordObj$motionWindow = list("outbound"=outbound,"returnwalk"=returnwalk,"resting"=resting);
+  
+  
+  info = recordObj$motionWindow;
+  plotme=TRUE;
+  
+  
+  dframe = info[[loo]];  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  method="variable";
+  
+  finalMotionFeatures(records,method);
+  
+  
+  # load data then imputate ... 
+  
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFr = paste(myO, paste(synapseProject,"MOTION-ready",sep='-'), ".txt", sep='');
+  
+  tstart = Sys.time(); 
+  mfeats = read.csv(pedFr,header=T,sep="|",quote="");
+  tend = Sys.time();
+  timer = tend - tstart; 
+  print(timer);
+  
+  
+  str(mfeats);
+  summary(mfeats);
+  
+  summary(mfeats$RETURNWALKsubExtremesMIN);
+  
+  myC = 1:dim(mfeats)[2]
+myC = myC[-c(1:4)];
+  
+  mfeats2 = imputateDataFrame(mfeats,myC);  # timer ... $ Time difference of 2.1279868866337672 hours
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFra = paste(myO, paste(synapseProject,"MOTION-submit",sep='-'), ".Rda", sep='');
+  pedFra;
+  
+  
+  
+  save(mfeats2,file=pedFra);
+  
+  load(pedFra);
+  
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+	mytemplate = read.csv(myT, header=T);	
+		#records = as.character(factor(mytemplate$recordId)); 		method="string";
+		records = names(audit$rclist);							 	method="variable";
+		
+		missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+		
+		
+		rownames(mfeats2) = as.character(mfeats2$rv);
+			rownames(mfeats2);
+	mfeats2 = appendRecordData(mfeats2,missingrecords,"MOTION-HEALTH");  # 13.662134865919748 mins	
+		# already has $r, $rv, but appending again ...
+
+	###
+	  myC = 1:dim(mfeats)[2]
+myC = myC[-c(1:4)];
+	myC = c(myC,201:204);  # age variables ...
+	
+  mfeats3 = imputateDataFrame(mfeats2,myC); # should be faster
+  
+   myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+  
+  
+  save(mfeats3,file=pedFras);
+  
+  load(pedFras);
+  
+  
+  
+  myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFrase = paste(myO, paste(synapseProject,"MOTION-finalsubmitme",sep='-'), ".Rda", sep='');
+  pedFrase;
+  
+      myC = 1:dim(mfeats)[2]
+myC = myC[-c(1:4)];
+
+  
+  #submitme = dampenOutliers(mfeats3,myC);  # happens within stepwise ... 
+  
+  #save(submitme,file=pedFrase);
+  
+  #load(pedFrase);
+  
+  
+  load(	"MotionFeatures.Rda" );	# pfeats
+
+  myC = 1:dim(mfeats3)[2]
+myC = myC[-c(1:4)];
+myC = myC[-c(196:200)];
+	## names(mfeats3)[myC]
+
+
+  # on server 
+  xfeats = myC;
+ rnum = 1; # which column has $r 
+ 
+ # 1.6 hours per loop
+ 
+ 
+	featureselections = stepwiseFeatureSelection(mfeats3,xfeats,rnum); # dampenOutliers happens ...
+
+	# registerDoMC(cores = 16);
+		# 16 cores took 42.23356631994247578632 mins
+								
+	
+	
+	# 19                4               15               20 
+##############
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+load(pedFras); #load mfeats3	
+	# first pass alll positive ROCs ... 							
+xfeats=c(8,9,10,11,13,17,19, 34,35,37,38,58,60,61,62,63,73,74,76, 84,85,89,90,91,93,95,96,97,98,99,100, 113,119,120,121,122,123,124,127,128,136,139, 140,141,142,143,144,145,146,147,148,149,150,151,152,154,157,158,160,161,162,163,164,165,166,170,173,174,175,178,179,180,181,182,183,184,185,186,187,188,189,190,191,196,199   );
+ 
+rnum = 1;	
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFrased = paste(myO, paste(synapseProject,"MOTION-FEATURES-3",sep='-'), ".Rda", sep='');
+  pedFrased;
+
+  
+	featureselectionsMFEATS3 = stepwiseFeatureSelection(mfeats3,xfeats,rnum); 	
+  
+  save(featureselectionsMFEATS3,file=pedFrased);
+  
+  #load(pedFrased);
+  
+##############  
+
+
+#turn off fastignore
+
+fastignore = FALSE;
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+load(pedFras); #load mfeats3	
+
+# first pass alll positive ROCs ... 							
+xfeats=c(8,9,10,11,13,17,19, 34,35,37,38,58,60,61,62,63,73,74,76, 84,85,89,90,91,93,95,96,97,98,99,100, 113,119,120,121,122,123,124,127,128,136,139, 140,141,142,143,144,145,146,147,148,149,150,151,152,154,157,158,160,161,162,163,164,165,166,170,173,174,175,178,179,180,181,182,183,184,185,186,187,188,189,190,191,196,199   );
+ 
+rnum = 1;	
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFrased = paste(myO, paste(synapseProject,"MOTION-FEATURES-3-FALSE",sep='-'), ".Rda", sep='');
+  pedFrased;
+
+  
+	featureselectionsMFEATS3ignore = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore); 	
+  
+  save(featureselectionsMFEATS3ignore,file=pedFrased);
+  
+  #load(pedFrased);
+  
+  
+  
+  
+# ##############   
+  
+## maybe try one without RETURNWALK  
+  
+  
+  # first pass alll positive ROCs ... 	without RETURNWALK (81:139)						
+xfeats=c(8,9,10,11,13,17,19, 34,35,37,38,58,60,61,62,63,73,74,76, 140,141,142,143,144,145,146,147,148,149,150,151,152,154,157,158,160,161,162,163,164,165,166,170,173,174,175,178,179,180,181,182,183,184,185,186,187,188,189,190,191,196,199   );
+
+
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+load(pedFras); #load mfeats3	
+
+ 
+rnum = 1;	
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFrased = paste(myO, paste(synapseProject,"MOTION-FEATURES-3-noreturn",sep='-'), ".Rda", sep='');
+  pedFrased;
+
+  
+	featureselectionsMFEATS3noreturn = stepwiseFeatureSelection(mfeats3,xfeats,rnum); 	
+  
+  save(featureselectionsMFEATS3noreturn,file=pedFrased);
+  
+  #load(pedFrased);
+  
+  
+
+
+								
+	> names(mfeats2)[151]
+[1] "RESTINGminorHzMAX"							
+		#151, 0.0497382708368447	
+
+> names(mfeats2)[c(151,97,121)]
+[1] "RESTINGminorHzMAX"       "RETURNWALKoverallMaxMAX"
+[1] "RESTINGminorHzMAX"       "RETURNWALKoverallMaxMAX" "RETURNWALKmajorHzMAX" 
+
+
+
+names(mfeats2)[c(151,97,121,99,96)]; #final run with first
+				
+				
+									# run without returnwalk
+									
+
+
+# 0.0769271651819
+
+
+
+
+library(doMC);
+registerDoMC(cores = 16);
+
+setwd("/data/R_data");
+
+library(synapseClient); 	# ls("package:synapseClient");
+library(mPowerEI);  		# ls("package:mPowerEI");			
+	loadSynapse('config.txt',login=T,synapsePassOverride='!Alexander9857');
+
+	## source("Rerror.txt");  # the functions are not updating for some reason ...
+	source("Rerror.txt");
+		loadSubmitLibraries();
+
+
+
+
+mPower = loadSynapseData();
+	setup = loadSetup();
+	audit = harvestAudit();  # 8.0414266149202991 mins
+
+	
+## let's redo 'pedometer'
+	 load(	"PedometerFeatures.Rda" );
+		str(pfeats);
+	 	
+		# write.csv(pfeats,file="pfeats.csv",quote=F,sep=",",row.names=F);
+		# pfeatsall = pfeats[,c(22,1:20)];
+		# write.csv(pfeatsall,file="pfeatsall.csv",quote=F,sep=",",row.names=F);
+
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+load(pedFras); #load mfeats3		
+	
+		# write.csv(mfeats3,file="mfeats3.csv",quote=F,sep=",",row.names=F);
+		# mfeats3all = mfeats3[,c(1,5:199)];
+		# write.csv(mfeats3all,file="mfeats3all.csv",quote=F,sep=",",row.names=F);
+		
+			
+	
+	
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	rnum=1;
+	dframe=mfeats3;
+	
+	startfeats = c(151,13,76,74);
+	
+	startfeats = c(151);
+	
+	
+	
+  # first pass alll positive ROCs ... 	without RETURNWALK (81:139)						
+xfeats=c(8,9,10,11,13,17,19, 34,35,37,38,58,60,61,62,63,73,74,76, 140,141,142,143,144,145,146,147,148,149,150,151,152,154,157,158,160,161,162,163,164,165,166,170,173,174,175,178,179,180,181,182,183,184,185,186,187,188,189,190,191,196,199   );
+
+
+
+
+trainme = codeHealthState(mPower$walking.training);
+	submitme = trainme[,c(1,15)];  # one variable $healthState
+	# submitme = trainme[,c(1,16)];  # one variable $isPD
+	
+# gold standard
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		print(resultme$error$ROC);   # 0.91734137545722882
+		
+	
+
+## let's redo 'pedometer'
+	 load(	"PedometerFeatures.Rda" );
+		str(pfeats);
+	 
+
+## copy/paste R-function from RStudio #stepwiseFeatureSelection	 
+	
+	
+	names(pfeats);
+		myC = c(22,1:20);  # rv is not r ... 
+	submitme = pfeats[,myC];  
+		# all
+	tstart = Sys.time();
+resultme = PD_score_challenge1(submitme);
+	tend = Sys.time(); timer = tend - tstart; print(timer);  # 51.315934896469116 secs
+	str(resultme$error);  
+		
+
+		
+# quick run
+xfeats = 1:20;
+rnum = 22; # which column has $r 
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	startfeats = NULL;  # # 19                4               15               20
+						# #20 will drop on "quick run";
+
+	featureselections = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		# dampenOutliers happens ... mfeats3,xfeats,rnum,fastignore
+		
+		
+		# main effects, first pass
+		
+		fstr = paste("[",xfeats,"]",sep='');
+			fstr = paste(fstr,names(pfeats)[xfeats],sep=" ");
+			
+			
+			
+			
+			
+		options(digits=5);
+			# main effects, first pass
+				fstr = paste("[",xfeats,"]",sep='');
+				fstr = paste(fstr,names(pfeats)[xfeats],sep=" ");
+			fdiff = round(featureselections$details$X1[xfeats] - featureselections$rndm,digits=5);			
+				names(fdiff) = fstr;			
+			fdiffo = fdiff[order(-fdiff)];	fdiffo;			
+		options(digits=22);
+		
+		
+		
+		
+# slower run		
+	fastignore=FALSE;	
+	startfeats = c(19,4);	
+	
+	featureselections.1 = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		# dampenOutliers happens ... mfeats3,xfeats,rnum,fastignore
+		
+
+
+# slower run		
+	fastignore=FALSE;	
+	startfeats = c(19,4,4);	
+	
+	featureselections.2 = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		# dampenOutliers happens ... mfeats3,xfeats,rnum,fastignore
+		
+		featureselections.2$nest;
+		featureselections.2$maxs - featureselections.2$rndm;
+		
+		
+		myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep='');
+  pedFras;
+load(pedFras); #load mfeats3
+
+
+## not converging?
+## https://stackoverflow.com/questions/37016271/how-to-tweak-maximum-number-of-iterations-in-r-caret-package
+
+### let's do quick run on only positive values of MOTION
+xfeats=c(8,9,10,11,13,17,19, 34,35,37,38,58,60,61,62,63,73,74,76, 140,141,142,143,144,145,146,147,148,149,150,151,152,154,157,158,160,161,162,163,164,165,166,170,173,174,175,178,179,180,181,182,183,184,185,186,187,188,189,190,191,196,199   );
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	startfeats = NULL;
+	rnum=1;
+	
+	featureselections.M1 = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+	
+	featureselections.M1$nest;
+		featureselections.M1$maxs - featureselections.M1$rndm;
+		
+		
+	
+	# slower run ... 
+	fastignore=FALSE;
+	startfeats = c(151,13);
+	rnum=1;
+
+	featureselections.M2 = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+	
+	
+	featureselections.M2$nest;
+		featureselections.M2$maxs - featureselections.M2$rndm;
+	
+	# [1] 151  13  76  74
+	
+### let's do a slow run on ALL ... # 151,97,121,99,96
+xfeats = 5:199;
+	fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = c(151);  # just do one pass of SLOW, find next feature, and restart...
+	rnum=1;
+	startfeats = c(151,97,121,99,18);  # 0.10267884437725094404215
+	
+	featureselections.MALL.SLOW = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		featureselections.MALL.SLOW$nest;
+		featureselections.MALL.SLOW$maxs - featureselections.MALL.SLOW$rndm;
+		
+	
+
+# submitmfeats = mfeats3[,c(1, 151,97,121,99,18 )];
+# write.csv(submitmfeats,file="submitmfeats.csv",quote=F,sep=",",row.names=F);	
+
+# submitmfeats2 = mfeats3[,c(1, 151,97,121,99,96 )];
+# write.csv(submitmfeats2,file="submitmfeats2.csv",quote=F,sep=",",row.names=F);
+	
+### let's do quick run on ALL
+xfeats = 5:199;
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	startfeats = NULL;
+	rnum=1;
+	
+	
+		featureselections.MALL = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		featureselections.MALL$nest;
+		
+		# [1] 151  97
+		
+		which(featureselections.MALL$details$X1 > featureselections.MALL$rndm);
+		
+		
+		
+		fstr = paste("[",xfeats,"]",sep='');
+			fstr = paste(fstr,names(mfeats3)[xfeats],sep=" ");
+			
+			
+			
+			
+			
+		options(digits=5);
+			fstr = paste("[",xfeats,"]",sep='');
+			fstr = paste(fstr,names(mfeats3)[xfeats],sep=" ");
+			fdiff = round(featureselections.MALL$details$X1[xfeats] - featureselections.MALL$rndm,digits=5);
+			
+			names(fdiff) = fstr;
+			
+			fdiffo = fdiff[order(-fdiff)];
+			
+			
+			fdiffo;
+
+			
+			
+		options(digits=22);
+		
+		
+		
+		
+		
+	xfeats = as.numeric(which(featureselections.MALL$details$X1 > featureselections.MALL$rndm));
+	
+	startfeats = NULL;
+	
+### let's do quick run on POSITIVE
+
+		featureselections.POSITIVE = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.POSITIVE$nest;
+		
+		# [1] 151  97
+		
+		
+startfeats = as.numeric(featureselections.POSITIVE$nest);
+	fastignore=FALSE;
+		
+		featureselections.POSITIVE.SLOW = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.POSITIVE.SLOW$nest;
+		featureselections.POSITIVE.SLOW$maxs - featureselections.POSITIVE.SLOW$rndm;
+		
+		# 151,97,121,99,96
+		
+		
+		
+# 
+startfeats = c(148);
+fastignore=TRUE;
+
+featureselections.POSITIVE.2 = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.POSITIVE.2$nest;
+		featureselections.POSITIVE.2$maxs - featureselections.POSITIVE.2$rndm;
+		
+		
+	
+		
+		
+startfeats = c(148,60);  # second place
+fastignore=FALSE;
+
+featureselections.POSITIVE.2a = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.POSITIVE.2a$nest;			
+
+		
+		
+		
+# let's try	ANGLES 5:16, OUTBOUND 18,20:79, REST  17,140:199, RETURNWALK 19,80:139 only features
+
+
+### let's do quick run on ANGLES ... then slow
+xfeats = 5:16;
+	fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = c(11,9);
+	rnum=1;
+
+		featureselections.ANGLES = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.ANGLES$nest;
+		featureselections.ANGLES$maxs - featureselections.ANGLES$rndm;
+		
+		
+### let's do quick run on OUTBOUND ... then slow
+xfeats = c(18,20:79);
+	fastignore=TRUE;		# fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = NULL;		# startfeats = c(38,62,53,40,33,52);
+	rnum=1;
+
+		featureselections.OUTBOUND = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.OUTBOUND$nest;
+		featureselections.OUTBOUND$maxs - featureselections.OUTBOUND$rndm;
+
+
+
+	
+### let's do quick run on RETURNWALK ... then slow
+xfeats = c(19,80:139);
+	fastignore=TRUE;		# fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = NULL;		# startfeats = c(123,98);
+	rnum=1;
+
+		featureselections.RETURNWALK = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.RETURNWALK$nest;
+		featureselections.RETURNWALK$maxs - featureselections.RETURNWALK$rndm;
+
+	
+
+	
+### let's do quick run on REST ... then slow
+xfeats = c(17,140:199);
+	fastignore=TRUE;		# fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = NULL;		# startfeats = c(151,190,142,148);
+	rnum=1;
+
+		featureselections.REST = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.REST$nest;
+		featureselections.REST$maxs - featureselections.REST$rndm;
+
+	
+
+	
+
+
+
+	
+		rownames(pfeats) = pfeats$r;
+		rownames(mfeats3) = mfeats3$r;
+	
+# let's merge mfeats3 and pfeats into a final set, of only good/bad
+uniqueP = unique( c( c(19,4,15,20),c(19,4,4,15,16) ) );
+uniqueM = unique( c( c(151,97,121,99,96),c(151,97,121,99,18) ) );
+
+mergefeats = merge(pfeats[,c(22,uniqueP)], mfeats3[,c(1,uniqueM)]);
+
+rnum = 1;
+xfeats = 2:12;
+
+fastignore=TRUE;		# fastignore=FALSE;
+	ignoreme=c(0,0);
+	startfeats = NULL;		# startfeats = c(7,8,9,10,12,11);  # reindexed
+
+featureselections.MERGED = stepwiseFeatureSelection(mergefeats,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		
+		
+		featureselections.MERGED$nest;
+		featureselections.MERGED$maxs - featureselections.MERGED$rndm;
+		
+		names(mergefeats);
+
+	
+		

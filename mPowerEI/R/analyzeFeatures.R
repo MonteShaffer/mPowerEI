@@ -93,6 +93,7 @@ imputateDataFrame = function(dframe,myC)
             
             if(is.na(dv))
             {
+              # should have added set.seed();
               noise = runif(1, -0.001, 0.001);
               replacev = medianCache[[hv]][[dvn]]  + noise;
             dframe[i,j] = replacev;
@@ -125,6 +126,7 @@ imputateDataFrame = function(dframe,myC)
           
           if(is.na(dv))
           {
+            # should have added set.seed();
             noise = runif(1, -0.001, 0.001);
             replacev = gmeds[[dvn]] + noise;
             dframe[i,j] = replacev;
