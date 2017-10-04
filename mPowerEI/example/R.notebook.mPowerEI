@@ -1,0 +1,274 @@
+---
+title: "R Notebook: mPowerEI"
+output: html_notebook
+---
+
+I begin with a config.txt file that is necessary for startup
+
+```{r}
+# Configuration Variables To Run
+
+        # path to local organized data objects, organized by 
+        # /$localCache$/md5(healthCode)/recordId/
+localCache    = "P:/_synapseCacheMonte";  
+
+synapseUser   = 'monte.shaffer@gmail.com'; # change to your credentials
+synapsePass   = 'MySuperSecretPassPhrase'; 
+synapseCache  = "P:/.synapseCache";                 
+
+synapseProject = "mPower";
+synapseTables = c('syn10146552','syn10146553','syn10733842','syn10733835');
+synapseVariables = c('demographics','walking.training','walking.testing','walking.supplemental');
+
+synapseListJSON = c("accel_walking_outbound.json.items","deviceMotion_walking_outbound.json.items","pedometer_walking_outbound.json.items","accel_walking_return.json.items","deviceMotion_walking_return.json.items","pedometer_walking_return.json.items","accel_walking_rest.json.items","deviceMotion_walking_rest.json.items");
+
+
+# data-access requires synapsePackage
+  # source('http://depot.sagebase.org/CRAN.R')
+  # pkgInstall("synapseClient")
+  # library(synapseClient);
+```
+
+The system will create a local cache of objects as the data is parsed, evaluated, and so on to extract features.
+
+The Harvest stage consists of the following:
+```{r}
+harvestJSON(mPower$walking.training,     'syn10146553');
+harvestJSON(mPower$walking.testing,      'syn10733842');
+harvestJSON(mPower$walking.supplemental, 'syn10733835');
+```
+The above will download all relevant JSON objects and store in the local folder structure (outside of Synapse Cache).  By default, their is a random flag allowing for randomization of healthCodes so several instances can occur simultaneously.  This took 2-4 days.  The nature of the caching prevents general collisions and allows randomization.
+
+After the data is harvested, an initial `harvestAudit()` needs to be called.  This builds a data object by looping over the 79,000+ records and summarizing the results.  This file gets cached for future loading.
+
+Once the data is harvested and organized, the following code with get you up and running (note: doMC requires multi-core environment).
+
+```{r}
+# if I have multiple cores, load them
+#library(doMC);
+#registerDoMC(cores = 16);
+
+setwd("/data/R_data");
+
+library(synapseClient); 	  # ls("package:synapseClient");
+library(mPowerEI);  		    # ls("package:mPowerEI");			
+	loadSynapse('config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
+
+	# Synapse Client may have the prediction functions, which I have hacked, 
+	# so let's include them to override the base functions
+	source("R-manualSynapseInclude.txt");  # relative path to the working directory
+		loadSubmitLibraries();
+
+mPower = loadSynapseData();  # loads summary data from syntables
+	setup = loadSetup();
+	audit = harvestAudit();  
+```
+	 
+I have two independent feature collections that get built.
+
+Data Mismatch: after doing harvest and comparing to submit there may be missing records... for now, I just imputate these missing values.
+```{r}
+    myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+mytemplate = read.csv(myT, header=T);
+	  records = names(audit$rclist);
+	  records = as.character(factor(mytemplate$recordId));
+missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+```
+
+#PEDOMETER#
+```{r}
+pfeats = getPedometerFeatures(records);   # takes hours 
+                                          
+                                          # records can be "string" from Synapse system (r)
+                                          # or "variable" from local system (rv)
+                                          # rv = 'RECORD2c767faef25d4cb2a788c2a8b1e0021f';
+                                          # rv = recordStringToVariable(r);
+                                          # r = '2c767fae-f25d-4cb2-a788-c2a8b1e0021f';
+                                          # r = recordVariableToString(rv);
+pfeats = appendRecordData(pfeats,missingrecords);
+pfeats = imputateDataFrame(pfeats,1:20);  # adds white noise to all replacement values
+
+# save/load as caching
+    # save(pfeats,file="PedometerFeatures.Rda");
+		# load(	"PedometerFeatures.Rda" );
+```
+
+
+#MOTION#
+Motion data is first a nested list of objects ...
+
+```{r}
+mfeats = getMotionFeatures(records,"variable");   # takes hours, caches individual objects
+                                                  # could be parallelized (sample in code comment)
+
+mfeats = getMotionFeatures(records,"variable",TRUE);  # finalizes into one large data object
+finalMotionFeatures(records,"variable");              # MOTION.Rda becomes MOTION-ready.txt 
+                                                      # writing one record at a time
+                                                      
+myO = paste(localCache,"summaryObjects","",sep="/");
+pedFr = paste(myO, paste(synapseProject,"MOTION-ready",sep='-'), ".txt", sep='');
+mfeats = read.csv(pedFr,header=T,sep="|",quote="");   # flattened csv file
+
+myC = 1:dim(mfeats)[2]; myC = myC[-c(1:4)];
+mfeats2 = imputateDataFrame(mfeats,myC);              # takes 2-3 hours
+
+# cache this file
+myO = paste(localCache,"summaryObjects","",sep="/");
+pedFra = paste(myO, paste(synapseProject,"MOTION-submit",sep='-'), ".Rda", sep=''); pedFra;
+  # save(mfeats2,file=pedFra);
+  # load(pedFra);
+  
+
+    myO = paste(localCache,"summaryObjects","",sep="/");
+		myT = paste(myO,"PDChallenge_SC1_SubmissionTemplate.csv",sep='');
+mytemplate = read.csv(myT, header=T);
+	  records = names(audit$rclist);
+	  records = as.character(factor(mytemplate$recordId));
+missingrecords = compareRecords(as.character(factor(mytemplate$recordId)), names(audit$rclist) );
+
+rownames(mfeats2) = as.character(mfeats2$rv);
+
+myC = 1:dim(mfeats)[2]; myC = myC[-c(1:4)]; myC = c(myC,201:204);    # age variables ...	
+  mfeats3 = imputateDataFrame(mfeats2,myC);
+  
+myO = paste(localCache,"summaryObjects","",sep="/");
+  pedFras = paste(myO, paste(synapseProject,"MOTION-final",sep='-'), ".Rda", sep=''); pedFras;  
+
+# cache this file
+  # save(mfeats3,file=pedFras);
+  # load(pedFras);
+  
+# mfeats3 is the final motion object
+```
+	
+I assume the testing framework provided is representative of the final scoring methodology.  I treat this function `PD_score_challenge1` as the method to maximize feature selection.  From PEDOMETER, I have 20 features.  From MOTION, I have 195 features.
+
+I establish a random baseline, and a gold standard:
+```{r}
+# gold
+trainme = codeHealthState(mPower$walking.training);
+	submitme = trainme[,c(1,15)];  # one variable $healthState
+loadSubmitLibraries();
+  resultme = PD_score_challenge1(submitme);
+  print(resultme$error$ROC);   # 0.91734137545722882
+  
+# random
+submitme$healthState = rnorm(dim(submitme)[1]);
+  resultme = PD_score_challenge1(submitme);
+  print(resultme$error$ROC);   # 0.59498125092849774
+```
+The black box refers to a table:
+```
+Control      PD 
+    178     275
+```
+I note that 178+257 = 453 and 275/453 = 0.60706401766004414.
+
+This is close to the `rnorm` simulation above, and I posit that predicting the unbalanced state as a simple probability serves as the benchmark.  This variable `rndm` will be compared to any blackbox comparisons.
+
+#Hierarchical Selection#
+Below allows us to determine the best features for PEDOMETER.  Each iteration takes about 30 seconds on my servers with 16 cores.  Any time a unique calculation is performed, it is cached so it does not have to performed again.
+
+```{r}
+# quick run
+xfeats = 1:20;
+rnum = 22; # which column has $r 
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	startfeats = NULL;
+	
+featureselections = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats);
+        featureselections$nest;
+		    featureselections$maxs - featureselections$rndm;
+		    
+		options(digits=5);
+			# main effects, first pass
+				fstr = paste("[",xfeats,"]",sep='');
+				fstr = paste(fstr,names(pfeats)[xfeats],sep=" ");
+			fdiff = round(featureselections$details$X1[xfeats] - featureselections$rndm,digits=5);			
+				names(fdiff) = fstr;			
+			fdiffo = fdiff[order(-fdiff)];	fdiffo;			
+		options(digits=22);
+		
+
+# slower run		
+	fastignore=FALSE;	
+	startfeats = c(19,4);
+
+featureselections.1 = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats);
+        featureselections.1$nest;
+		    featureselections.1$maxs - featureselections.1$rndm;
+
+# slower run, note the double entry of a single feature twice		
+	fastignore=FALSE;	
+	startfeats = c(19,4,4);	
+
+featureselections.2 = stepwiseFeatureSelection(pfeats,xfeats,rnum,fastignore,ignoreme,startfeats);
+        featureselections.2$nest;
+		    featureselections.2$maxs - featureselections.2$rndm;
+```
+
+I could similarly report `stepwiseFeatureSelection()` for `mfeats3`.
+
+```{r}
+### let's do quick run on ALL
+xfeats = 5:199;
+	fastignore=TRUE;
+	ignoreme=c(0,0);
+	startfeats = NULL;
+	rnum=1;
+	
+	
+		featureselections.MALL = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		    featureselections.MALL$nest;
+		    featureselections.MALL$maxs - featureselections.MALL$rndm;
+		    
+		options(digits=5);
+			# main effects, first pass
+				fstr = paste("[",xfeats,"]",sep='');
+				fstr = paste(fstr,names(pfeats)[xfeats],sep=" ");
+			fdiff = round(featureselections.MALL$details$X1[xfeats] - featureselections.MALL$rndm,digits=5);			
+				names(fdiff) = fstr;			
+			fdiffo = fdiff[order(-fdiff)];	fdiffo;			
+		options(digits=22);
+
+### let's do quick run on POSITIVE
+xfeats = as.numeric(which(featureselections.MALL$details$X1 > featureselections.MALL$rndm));
+startfeats = NULL;
+	
+	  featureselections.POSITIVE = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+	      featureselections.POSITIVE$nest;
+		    featureselections.POSITIVE$maxs - featureselections.POSITIVE$rndm;
+		    
+### slower run on results from previous
+startfeats = as.numeric(featureselections.POSITIVE$nest);
+fastignore=FALSE;
+
+    featureselections.POSITIVE.SLOW = stepwiseFeatureSelection(mfeats3,xfeats,rnum,fastignore,ignoreme,startfeats); 
+		    featureselections.POSITIVE.SLOW$nest;
+		    featureselections.POSITIVE.SLOW$maxs - featureselections.POSITIVE.SLOW$rndm;
+	
+```
+
+
+Final features, merge MOTION and PEDOMETER.  ALL vs WINNERS.
+
+```# let's merge mfeats3 and pfeats into a final set, of only good/bad
+uniqueP = unique( c( c(19,4,15,20),c(19,4,4,15,16) ) );
+uniqueM = 
+```
+
+
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).

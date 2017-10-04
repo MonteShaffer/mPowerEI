@@ -1,7 +1,76 @@
 ---
-title: "R Notebook"
+title: "R Notebook: mPowerEI"
 output: html_notebook
 ---
+
+We begin with a config.txt file that is necessary for startup
+
+```
+# Configuration Variables To Run
+
+        # path to local organized data objects, organized by 
+        # /$localCache$/md5(healthCode)/recordId/
+localCache    = "P:/_synapseCacheMonte";  
+
+synapseUser   = 'monte.shaffer@gmail.com'; # change to your credentials
+synapsePass   = 'MySuperSecretPassPhrase'; 
+synapseCache  = "P:/.synapseCache";                 
+
+synapseProject = "mPower";
+synapseTables = c('syn10146552','syn10146553','syn10733842','syn10733835');
+synapseVariables = c('demographics','walking.training','walking.testing','walking.supplemental');
+
+synapseListJSON = c("accel_walking_outbound.json.items","deviceMotion_walking_outbound.json.items","pedometer_walking_outbound.json.items","accel_walking_return.json.items","deviceMotion_walking_return.json.items","pedometer_walking_return.json.items","accel_walking_rest.json.items","deviceMotion_walking_rest.json.items");
+
+
+# data-access requires synapsePackage
+  # source('http://depot.sagebase.org/CRAN.R')
+  # pkgInstall("synapseClient")
+  # library(synapseClient);
+```
+
+The system will create a local cache of objects as the data is parsed, evaluated, and so on to extract features.
+
+The Harvest stage consists of the following:
+```
+harvestJSON(mPower$walking.training,     'syn10146553');
+harvestJSON(mPower$walking.testing,      'syn10733842');
+harvestJSON(mPower$walking.supplemental, 'syn10733835');
+```
+The above will download all relevant JSON objects and store in the local folder structure (outside of Synapse Cache).  By default, their is a random flag allowing for randomization of healthCodes so several instances can occur simultaneously.  This took 2-4 days.  The nature of the caching prevents general collisions and allows randomization.
+
+After the data is harvested, an initial `harvestAudit()` needs to be called.  This builds a data object by looping over the 79,000+ records and summarizing the results.  This file gets cached for future loading.
+
+Once the data is harvested and organized, the following code with get you up and running (note: doMC requires multi-core environment).
+
+```
+# if we have multiple cores, load them
+#library(doMC);
+#registerDoMC(cores = 16);
+
+setwd("/data/R_data");
+
+library(synapseClient); 	  # ls("package:synapseClient");
+library(mPowerEI);  		    # ls("package:mPowerEI");			
+	loadSynapse('config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
+
+	# Synapse Client may have the prediction functions, which I have hacked, 
+	# so let's include them to override the base functions
+	source("R-manualSynapseInclude.txt");  # relative path to the working directory
+		loadSubmitLibraries();
+
+mPower = loadSynapseData();  # loads summary data from syntables
+	setup = loadSetup();
+	audit = harvestAudit();  
+```
+	 
+We have two independent feature collections that get built.
+
+#PEDOMETER#
+
+#MOTION#
+	
+
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
