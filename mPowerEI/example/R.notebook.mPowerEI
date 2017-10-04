@@ -257,7 +257,7 @@ Final features, merge MOTION and PEDOMETER.  ALL vs WINNERS.
 ```# let's merge mfeats3 and pfeats into a final set, of only good/bad
 uniqueP = unique( c( c(19,4,15,20),c(19,4,4,15,16) ) );
 uniqueM = 
-```
+``` 
 
 
 
