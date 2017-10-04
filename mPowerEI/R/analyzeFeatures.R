@@ -70,7 +70,7 @@ imputateDataFrame = function(dframe,myC)
     }
   
     
-  # let's replace Inf -Inf with NA
+  # let's replace Inf -Inf with NA ... not working
     # https://stackoverflow.com/questions/12188509/cleaning-inf-values-from-an-r-dataframe
     dframe <- do.call(data.frame,lapply(dframe, function(x) replace(x, is.infinite(x),NA)));
     dframe <- do.call(data.frame,lapply(dframe, function(x) replace(x, is.nan(x),NA)));
