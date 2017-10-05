@@ -4,7 +4,7 @@ setwd("P:/_.github._/mPowerEI")
 
 
 library(synapseCache);
-loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 	# MonteShaffer ... [!S9] ... 
 mPower = loadSynapseData();
 	setup = loadSetup();
@@ -365,7 +365,7 @@ rv='RECORDc9ac2e8556d74e23ac4b725532f7dec7';
 
 
 library(mPowerEI);
-loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 mPower = loadSynapseData();
 	setup = loadSetup();
 
@@ -388,7 +388,7 @@ mPower = loadSynapseData();
 library(devtools);	
 install_github("MonteShaffer/mPowerEI", subdir="mPowerEI");
 library(mPowerEI);	
-loadSynapse("P:\\_.github._\\mPowerEI\\mPowerEI\\example\\config.txt",login=T,synapsePassOverride='!Alexander9857');
+loadSynapse("P:\\_.github._\\mPowerEI\\mPowerEI\\example\\config.txt",login=T,synapsePassOverride='PutYourPasswordHere');
 
 
 # http://kbroman.org/pkg_primer/pages/github.html
@@ -402,7 +402,7 @@ library(mPowerEI);
 
 
 	# setwd("P:/_.github._/mPowerEI")
-	loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+	loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 
 mPower = loadSynapseData();	# loads summary info of data tables
 	
@@ -776,7 +776,7 @@ setwd("/data/R_data");
 
 library(synapseClient); 	# ls("package:synapseClient");
 library(mPowerEI);  		# ls("package:mPowerEI");			
-	loadSynapse('config.txt',login=T,synapsePassOverride='!Alexander9857');
+	loadSynapse('config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 
 	## source("Rerror.txt");  # the functions are not updating for some reason ...
 	source("Rerror.txt");
@@ -1997,7 +1997,7 @@ smoothList$oriented = as.data.frame(cbind(olist[[whichKey]]$timestamp / 1000,oli
 
 setwd("P:/_.github._/mPowerEI")
 
-loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='!Alexander9857');
+loadSynapse('./mPowerEI/example/config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 	# MonteShaffer ... [!S9] ... 
 mPower = loadSynapseData();
 	setup = loadSetup();
@@ -2338,7 +2338,7 @@ setwd("/data/R_data");
 
 library(synapseClient); 	# ls("package:synapseClient");
 library(mPowerEI);  		# ls("package:mPowerEI");			
-	loadSynapse('config.txt',login=T,synapsePassOverride='!Alexander9857');
+	loadSynapse('config.txt',login=T,synapsePassOverride='PutYourPasswordHere');
 
 	## source("Rerror.txt");  # the functions are not updating for some reason ...
 	source("Rerror.txt");
